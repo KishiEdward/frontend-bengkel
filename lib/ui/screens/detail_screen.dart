@@ -61,6 +61,114 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  // Dialog untuk Catat Biaya Tambahan
+  void _tampilDialogBiayaTambahan(BuildContext context, int pesananId) {
+    final ketCtrl = TextEditingController();
+    final nomCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Catat Biaya Tambahan"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ketCtrl,
+              decoration: const InputDecoration(
+                labelText: "Keterangan (Mata bor patah, dll)",
+              ),
+            ),
+            TextField(
+              controller: nomCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: "Nominal (Rp)"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (ketCtrl.text.isEmpty || nomCtrl.text.isEmpty) return;
+              Navigator.pop(context); // Tutup dialog
+
+              bool sukses =
+                  await Provider.of<DetailPesananProvider>(
+                    context,
+                    listen: false,
+                  ).tambahBiayaTakTerduga(
+                    pesananId,
+                    ketCtrl.text,
+                    double.parse(nomCtrl.text),
+                  );
+
+              if (sukses && mounted) {
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Biaya dicatat! Margin diperbarui."),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+            child: const Text("Simpan"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Dialog untuk Ubah Status
+  void _tampilDialogUbahStatus(
+    BuildContext context,
+    int pesananId,
+    String statusSaatIni,
+  ) {
+    String statusPilihan = statusSaatIni;
+    final listStatus = ["Menunggu DP", "WIP", "Menunggu Pelunasan", "Selesai"];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("Ubah Status Proyek"),
+            content: DropdownButtonFormField<String>(
+              initialValue: listStatus.contains(statusSaatIni)
+                  ? statusSaatIni
+                  : "Menunggu DP",
+              items: listStatus
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  .toList(),
+              onChanged: (val) => setState(() => statusPilihan = val!),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Batal"),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await Provider.of<DetailPesananProvider>(
+                    context,
+                    listen: false,
+                  ).ubahStatusPesanan(pesananId, statusPilihan);
+                },
+                child: const Text("Update"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -227,6 +335,44 @@ class _DetailScreenState extends State<DetailScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 24),
+
+                // TOMBOL AKSI
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(Icons.edit),
+                        label: const Text("Ubah Status"),
+                        onPressed: () => _tampilDialogUbahStatus(
+                          context,
+                          pesanan['id'],
+                          pesanan['status'],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(Icons.money_off),
+                        label: const Text("+ Biaya Extra"),
+                        onPressed: () =>
+                            _tampilDialogBiayaTambahan(context, pesanan['id']),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
               ],
             ),
           );
