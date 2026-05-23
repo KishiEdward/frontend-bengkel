@@ -27,11 +27,37 @@ class PesananService {
     if (response.statusCode == 200) {
       final Map<String, dynamic> responseData = jsonDecode(response.body);
       final List<dynamic> dataList = responseData['data'];
-      
+
       // Ubah list JSON menjadi list Objek Pesanan
       return dataList.map((json) => Pesanan.fromJson(json)).toList();
     } else {
       throw Exception("Gagal mengambil data pesanan");
+    }
+  }
+
+  // Mengambil detail pesanan beserta kalkulasi margin dari backend
+  Future<Map<String, dynamic>> getDetailPesanan(int id) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('jwt_token');
+
+    if (token == null) {
+      throw Exception("Sesi telah habis, silakan login kembali.");
+    }
+
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/pesanan/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      // Backend mengembalikan { data: { pesanan: {...}, keuangan: {...} } }
+      return responseData['data'];
+    } else {
+      throw Exception("Gagal mengambil detail pesanan");
     }
   }
 }
