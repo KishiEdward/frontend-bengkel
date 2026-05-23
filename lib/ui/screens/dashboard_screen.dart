@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:front_bengkel/ui/screens/detail_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/pesanan_provider.dart';
@@ -108,6 +109,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              DetailScreen(pesananId: pesanan.id),
+                        ),
+                      );
                     },
                   ),
                 );
@@ -118,8 +126,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF11caa0),
-        onPressed: () {
-        },
+        onPressed: () {},
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
