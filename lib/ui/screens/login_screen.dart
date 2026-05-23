@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:front_bengkel/ui/screens/dashboard_screen.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -27,9 +28,14 @@ class _LoginScreenState extends State<LoginScreen> {
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Login Berhasil! JWT Tersimpan di HP."),
+          content: Text("Login Berhasil!"),
           backgroundColor: Colors.green,
         ),
+      );
+      // Pindah ke Halaman Dashboard dan hapus halaman login dari history ('back button')
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
       );
       // Nanti kode navigasi ke halaman Dashboard ditaruh di sini
     } else {
