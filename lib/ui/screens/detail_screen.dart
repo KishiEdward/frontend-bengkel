@@ -61,6 +61,83 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  // Dialog untuk Catat Pembayaran
+  void _tampilDialogPembayaran(BuildContext context, int pesananId) {
+    String tipePilihan = "DP";
+    final nominalCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("Input Pembayaran"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: tipePilihan,
+                  items: ["DP", "Cicilan", "Lunas"]
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (val) => setState(() => tipePilihan = val!),
+                  decoration: const InputDecoration(
+                    labelText: "Tipe Pembayaran",
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nominalCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Jumlah (Rp)",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Batal"),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () async {
+                  if (nominalCtrl.text.isEmpty) return;
+                  Navigator.pop(context); // Tutup dialog
+
+                  bool sukses =
+                      await Provider.of<DetailPesananProvider>(
+                        context,
+                        listen: false,
+                      ).catatPembayaran(
+                        pesananId,
+                        tipePilihan,
+                        double.parse(nominalCtrl.text),
+                      );
+
+                  if (sukses && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Uang masuk berhasil dicatat!"),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                },
+                child: const Text("Simpan"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   // Dialog untuk Catat Biaya Tambahan
   void _tampilDialogBiayaTambahan(BuildContext context, int pesananId) {
     final ketCtrl = TextEditingController();
@@ -371,6 +448,27 @@ class _DetailScreenState extends State<DetailScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 32),
+
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(
+                      50,
+                    ), // Buat tombol full-lebar
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.payments),
+                  label: const Text(
+                    "Catat Pembayaran",
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  onPressed: () =>
+                      _tampilDialogPembayaran(context, pesanan['ID']),
                 ),
                 const SizedBox(height: 32),
               ],
