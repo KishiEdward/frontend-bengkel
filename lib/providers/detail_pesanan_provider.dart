@@ -72,4 +72,20 @@ class DetailPesananProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<bool> catatPembayaran(int id, String tipe, double jumlah) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      bool success = await _pesananService.catatPembayaran(id, tipe, jumlah);
+      if (success) await fetchDetailPesanan(id); // Refresh Sisa Tagihan terbaru
+      return success;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }
