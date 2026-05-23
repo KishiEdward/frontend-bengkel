@@ -28,4 +28,25 @@ class PesananProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // Fungsi submit form
+  Future<bool> tambahPesanan(Map<String, dynamic> data) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      bool success = await _pesananService.createPesanan(data);
+      if (success) {
+        // Jika sukses, tarik ulang data terbaru dari backend
+        await fetchPesanan();
+      }
+      return success;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll("Exception: ", "");
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }
