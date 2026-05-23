@@ -84,4 +84,44 @@ class PesananService {
       throw Exception(errorData['message'] ?? "Gagal membuat pesanan");
     }
   }
+
+  // Fungsi ubah status pesanan
+  Future<bool> updateStatus(int id, String status) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('jwt_token');
+
+    final response = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/pesanan/$id/status'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({"status": status}),
+    );
+    return response.statusCode == 200;
+  }
+
+  // Fungsi catat pengeluaran tak terduga
+  Future<bool> catatBiayaTambahan(
+    int pesananId,
+    String keterangan,
+    double nominal,
+  ) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('jwt_token');
+
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/biaya-tambahan'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        "pesanan_id": pesananId,
+        "keterangan": keterangan,
+        "nominal": nominal,
+      }),
+    );
+    return response.statusCode == 201; // Sesuai dengan created 201 di Postman
+  }
 }
