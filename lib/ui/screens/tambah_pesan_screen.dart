@@ -33,9 +33,12 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
         "alamat": _alamatCtrl.text,
         "no_telp": _noTelpCtrl.text,
       },
-      "tgl_order": DateTime.now().toIso8601String(), // Otomatis hari ini
+      "tgl_order": DateTime.now()
+          .toUtc()
+          .toIso8601String(), // Otomatis hari ini
       "tgl_deadline": DateTime.now()
           .add(const Duration(days: 7))
+          .toUtc()
           .toIso8601String(), // Default +7 Hari
       "harga_jual": double.parse(_hargaJualCtrl.text),
       "status": "Menunggu DP",
