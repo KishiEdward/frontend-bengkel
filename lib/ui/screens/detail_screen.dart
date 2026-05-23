@@ -351,7 +351,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         label: const Text("Ubah Status"),
                         onPressed: () => _tampilDialogUbahStatus(
                           context,
-                          pesanan['id'],
+                          pesanan['ID'],
                           pesanan['status'],
                         ),
                       ),
@@ -367,7 +367,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         icon: const Icon(Icons.money_off),
                         label: const Text("+ Biaya Extra"),
                         onPressed: () =>
-                            _tampilDialogBiayaTambahan(context, pesanan['id']),
+                            _tampilDialogBiayaTambahan(context, pesanan['ID']),
                       ),
                     ),
                   ],
