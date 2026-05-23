@@ -28,4 +28,48 @@ class DetailPesananProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<bool> ubahStatusPesanan(int id, String statusBaru) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      bool success = await _pesananService.updateStatus(id, statusBaru);
+      if (success) {
+        await fetchDetailPesanan(id); // Langsung refresh data terbaru
+      }
+      return success;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> tambahBiayaTakTerduga(
+    int id,
+    String keterangan,
+    double nominal,
+  ) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      bool success = await _pesananService.catatBiayaTambahan(
+        id,
+        keterangan,
+        nominal,
+      );
+      if (success) {
+        await fetchDetailPesanan(id); // Langsung refresh HPP dan Margin
+      }
+      return success;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }
