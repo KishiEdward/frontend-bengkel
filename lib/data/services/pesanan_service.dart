@@ -60,4 +60,28 @@ class PesananService {
       throw Exception("Gagal mengambil detail pesanan");
     }
   }
+
+  // Fungsi untuk mengirim data pesanan baru ke Golang
+  Future<bool> createPesanan(Map<String, dynamic> dataPesanan) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('jwt_token');
+
+    if (token == null) throw Exception("Sesi telah habis.");
+
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/pesanan'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(dataPesanan),
+    );
+
+    if (response.statusCode == 201) {
+      return true; // 201 Created
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? "Gagal membuat pesanan");
+    }
+  }
 }
