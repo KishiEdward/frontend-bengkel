@@ -5,6 +5,7 @@ import 'providers/auth_provider.dart';
 import 'ui/screens/login_screen.dart';
 import 'providers/pesanan_provider.dart';
 import 'providers/detail_pesanan_provider.dart';
+import 'providers/laporan_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => PesananProvider()),
         ChangeNotifierProvider(create: (_) => DetailPesananProvider()),
+        ChangeNotifierProvider(create: (_) => LaporanProvider()),
       ],
       child: MaterialApp(
         title: 'Bengkel Bubut ABC',

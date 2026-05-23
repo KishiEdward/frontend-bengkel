@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:front_bengkel/ui/screens/detail_screen.dart';
+import 'package:front_bengkel/ui/screens/laporan_screen.dart';
 import 'package:front_bengkel/ui/screens/tambah_pesan_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -41,6 +42,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: const Color(0xFF005088),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart, color: Colors.white),
+            tooltip: 'Laporan Keuangan',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LaporanScreen()),
+              );
+            },
+          ),
+        ],
       ),
       // RefreshIndicator untuk fitur Pull-to-Refresh
       body: RefreshIndicator(
