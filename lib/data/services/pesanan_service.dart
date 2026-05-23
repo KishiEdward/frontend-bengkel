@@ -124,4 +124,30 @@ class PesananService {
     );
     return response.statusCode == 201; // Sesuai dengan created 201 di Postman
   }
+
+  // Fungsi catat pembayaran (DP / Lunas)
+  Future<bool> catatPembayaran(
+    int pesananId,
+    String tipe,
+    double jumlah,
+  ) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('jwt_token');
+
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/pembayaran'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        "pesanan_id": pesananId,
+        "tipe": tipe,
+        "jumlah": jumlah,
+        // Kita sertakan toUtc() agar aman dari error zona waktu seperti tadi
+        "tgl": DateTime.now().toUtc().toIso8601String(),
+      }),
+    );
+    return response.statusCode == 201;
+  }
 }
