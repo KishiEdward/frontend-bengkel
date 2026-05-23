@@ -32,12 +32,10 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      // Pindah ke Halaman Dashboard dan hapus halaman login dari history ('back button')
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const DashboardScreen()),
       );
-      // Nanti kode navigasi ke halaman Dashboard ditaruh di sini
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
