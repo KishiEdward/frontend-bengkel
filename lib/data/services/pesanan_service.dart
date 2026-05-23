@@ -150,4 +150,25 @@ class PesananService {
     );
     return response.statusCode == 201;
   }
+
+  // Fungsi untuk menarik laporan keuangan global
+  Future<Map<String, dynamic>> getLaporanKeuangan() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('jwt_token');
+
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/pesanan/laporan'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      return responseData['data'];
+    } else {
+      throw Exception("Gagal menarik data laporan keuangan");
+    }
+  }
 }

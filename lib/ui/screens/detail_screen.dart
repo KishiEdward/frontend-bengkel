@@ -76,7 +76,7 @@ class _DetailScreenState extends State<DetailScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: tipePilihan,
+                  initialValue: tipePilihan,
                   items: ["DP", "Cicilan", "Lunas"]
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
@@ -121,6 +121,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       );
 
                   if (sukses && mounted) {
+                    // ignore: use_build_context_synchronously
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text("Uang masuk berhasil dicatat!"),
