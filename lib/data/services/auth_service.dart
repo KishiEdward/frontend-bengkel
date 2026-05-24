@@ -7,52 +7,72 @@ import '../../core/constants.dart';
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
+  // 1. FUNGSI BARU: REGISTRASI & KIRIM EMAIL VERIFIKASI
+  Future<bool> register(String email, String password) async {
+    try {
+      UserCredential userCredential = await _firebaseAuth
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      // Setelah berhasil terdaftar, langsung kirim email verifikasi
+      if (userCredential.user != null && !userCredential.user!.emailVerified) {
+        await userCredential.user!.sendEmailVerification();
+      }
+      return true;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? "Gagal mendaftar");
+    }
+  }
+
+  // 2. MODIFIKASI FUNGSI LOGIN
   Future<bool> login(String email, String password) async {
     try {
-      // 1. Verifikasi Email & Password ke Firebase Google
       UserCredential userCredential = await _firebaseAuth
           .signInWithEmailAndPassword(email: email, password: password);
 
-      // 2. Jika berhasil, minta ID Token Firebase
+      // CEK STATUS VERIFIKASI DI SINI
+      if (userCredential.user != null && !userCredential.user!.emailVerified) {
+        // Jika belum verifikasi, kirim ulang emailnya (opsional) lalu tolak login
+        await userCredential.user!.sendEmailVerification();
+        // Logout otomatis dari Firebase agar status ter-reset
+        await _firebaseAuth.signOut();
+        throw Exception(
+          "Email belum diverifikasi! Silakan cek kotak masuk/spam email Anda untuk link verifikasi.",
+        );
+      }
+
+      // Jika sudah diverifikasi, lanjut minta token ke Golang (Kode lama tetap sama)
       String? firebaseToken = await userCredential.user?.getIdToken();
       if (firebaseToken == null) {
         throw Exception("Gagal mendapatkan Firebase Token");
       }
 
-      // 3. Kirim Firebase Token ke Backend Golang kita
       final response = await http.post(
         Uri.parse('${AppConstants.baseUrl}/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'firebase_token': firebaseToken}),
       );
 
-      // 4. Proses balasan dari Golang
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        String jwtToken = data['token']; // Ambil JWT Stempel Bengkel
-
-        // Simpan JWT di brankas lokal HP agar tidak perlu login terus
+        String jwtToken = data['token'];
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', jwtToken);
-
         return true;
       } else {
         final errorData = jsonDecode(response.body);
         throw Exception(errorData['message'] ?? "Gagal login ke server lokal");
       }
     } catch (e) {
-      // Tangkap error (misal: password salah, server mati)
       rethrow;
     }
   }
 
-  // Fungsi untuk mengirim email reset password via Firebase
+  // Fungsi Reset Password (sudah kita buat sebelumnya)
   Future<bool> resetPassword(String email) async {
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: email);
       return true;
     } catch (e) {
-      // Firebase akan melempar error jika email tidak terdaftar atau format salah
       throw Exception(
         "Gagal mengirim tautan. Pastikan email terdaftar dan valid.",
       );
