@@ -45,4 +45,17 @@ class AuthService {
       rethrow;
     }
   }
+
+  // Fungsi untuk mengirim email reset password via Firebase
+  Future<bool> resetPassword(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+      return true;
+    } catch (e) {
+      // Firebase akan melempar error jika email tidak terdaftar atau format salah
+      throw Exception(
+        "Gagal mengirim tautan. Pastikan email terdaftar dan valid.",
+      );
+    }
+  }
 }
