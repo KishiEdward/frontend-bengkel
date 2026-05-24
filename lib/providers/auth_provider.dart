@@ -28,7 +28,26 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Tambahkan di bawah fungsi login
+  // Fungsi baru untuk registrasi
+  Future<bool> register(String email, String password) async {
+    _isLoading = true;
+    _errorMessage = '';
+    notifyListeners();
+
+    try {
+      bool success = await _authService.register(email, password);
+      _isLoading = false;
+      notifyListeners();
+      return success;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceAll("Exception: ", "");
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Fungsi reset pw
   Future<bool> resetPassword(String email) async {
     _isLoading = true;
     _errorMessage = '';
