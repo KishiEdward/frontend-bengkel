@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -11,28 +13,6 @@ class DetailScreen extends StatefulWidget {
 
   @override
   State<DetailScreen> createState() => _DetailScreenState();
-}
-
-class CurrencyInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) return newValue.copyWith(text: '');
-    String numericOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (numericOnly.isEmpty) return newValue.copyWith(text: '');
-    final format = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: '',
-      decimalDigits: 0,
-    );
-    String formatted = format.format(int.parse(numericOnly));
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
-  }
 }
 
 class _DetailScreenState extends State<DetailScreen> {
@@ -95,7 +75,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  // Dialog Pembayaran (Tetap sama)
+  // Dialog Pembayaran
   void _tampilDialogPembayaran(BuildContext context, int pesananId) {
     String tipePilihan = "DP";
     final nominalCtrl = TextEditingController();
@@ -123,9 +103,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 TextField(
                   controller: nominalCtrl,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    CurrencyInputFormatter(),
-                  ], // FORMAT RIBUAN DITAMBAHKAN
+                  inputFormatters: [CurrencyInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: "Jumlah (Rp)",
                     border: OutlineInputBorder(),
@@ -147,7 +125,6 @@ class _DetailScreenState extends State<DetailScreen> {
                   if (nominalCtrl.text.isEmpty) return;
                   Navigator.pop(context);
 
-                  // HAPUS TITIK SEBELUM DI-PARSE KE DOUBLE
                   double nominalBersih = double.parse(
                     nominalCtrl.text.replaceAll('.', ''),
                   );
@@ -158,7 +135,6 @@ class _DetailScreenState extends State<DetailScreen> {
                   ).catatPembayaran(pesananId, tipePilihan, nominalBersih);
 
                   if (sukses && mounted) {
-                    // ignore: use_build_context_synchronously
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text("Uang masuk dicatat!"),
@@ -176,7 +152,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  // Dialog Biaya Tambahan (Tetap sama)
+  // Dialog Biaya Tambahan
   void _tampilDialogBiayaTambahan(BuildContext context, int pesananId) {
     final ketCtrl = TextEditingController();
     final nomCtrl = TextEditingController();
@@ -198,9 +174,7 @@ class _DetailScreenState extends State<DetailScreen> {
             TextField(
               controller: nomCtrl,
               keyboardType: TextInputType.number,
-              inputFormatters: [
-                CurrencyInputFormatter(),
-              ], // FORMAT RIBUAN DITAMBAHKAN
+              inputFormatters: [CurrencyInputFormatter()],
               decoration: const InputDecoration(
                 labelText: "Total Nominal (Rp)",
               ),
@@ -217,7 +191,6 @@ class _DetailScreenState extends State<DetailScreen> {
               if (ketCtrl.text.isEmpty || nomCtrl.text.isEmpty) return;
               Navigator.pop(context);
 
-              // HAPUS TITIK SEBELUM DI-PARSE KE DOUBLE
               double nominalBersih = double.parse(
                 nomCtrl.text.replaceAll('.', ''),
               );
@@ -228,7 +201,6 @@ class _DetailScreenState extends State<DetailScreen> {
               ).tambahBiayaTakTerduga(pesananId, ketCtrl.text, nominalBersih);
 
               if (sukses && mounted) {
-                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text("Biaya dicatat! Margin diperbarui."),
@@ -244,7 +216,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  // Dialog Ubah Status (Tetap sama)
+  // Dialog Ubah Status
   void _tampilDialogUbahStatus(
     BuildContext context,
     int pesananId,
@@ -322,11 +294,13 @@ class _DetailScreenState extends State<DetailScreen> {
           final keuangan = provider.detailData!['keuangan'];
           final customer = pesanan['customer'] ?? {};
 
-          // Antisipasi perbedaan format key dari Golang (bisa snake_case atau camelCase)
           final List listMaterial =
               pesanan['pesanan_material'] ?? pesanan['PesananMaterial'] ?? [];
           final List listBiayaTambahan =
               pesanan['biaya_tambahan'] ?? pesanan['BiayaTambahan'] ?? [];
+          // KODE BARU: Ambil list histori pembayaran masuk
+          final List listPembayaran =
+              pesanan['pembayaran'] ?? pesanan['Pembayaran'] ?? [];
 
           // Kalkulasi Persentase Margin
           double marginBersih = keuangan['margin_aktual']?.toDouble() ?? 0;
@@ -410,7 +384,6 @@ class _DetailScreenState extends State<DetailScreen> {
                             ),
                           ),
                         ...listMaterial.map((m) {
-                          // Mengecek struktur JSON material dari Golang
                           String namaMaterial = m['material'] != null
                               ? m['material']['nama']
                               : (m['nama_material'] ?? 'Material');
@@ -543,8 +516,6 @@ class _DetailScreenState extends State<DetailScreen> {
                           formatRupiah(hppAktual),
                           isHighlight: true,
                         ),
-
-                        // Menampilkan Margin beserta persentasenya
                         _buildInfoRow(
                           "Margin Bersih",
                           textMarginBersih,
@@ -557,7 +528,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 5. KARTU PEMBAYARAN
+                // 5. KARTU PEMBAYARAN (SEKARANG DENGAN HISTORI RINCIAN)
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(
@@ -569,7 +540,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          "Status Tagihan",
+                          "Status & Riwayat Tagihan",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -577,6 +548,60 @@ class _DetailScreenState extends State<DetailScreen> {
                           ),
                         ),
                         const Divider(),
+
+                        // KODE UPDATE: Menampilkan baris histori per transaksi cicilan/DP
+                        if (listPembayaran.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 6.0),
+                            child: Text(
+                              "Belum ada catatan uang masuk",
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ...listPembayaran.map((p) {
+                          String tipe = p['tipe'] ?? 'Bayar';
+                          double jumlah = p['jumlah']?.toDouble() ?? 0;
+                          String tgl = p['tgl'] != null
+                              ? p['tgl'].toString().substring(0, 10)
+                              : '';
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle,
+                                      size: 16,
+                                      color: Colors.blue,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "Uang Masuk ($tipe) - $tgl",
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  formatRupiah(jumlah),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+
+                        const Divider(thickness: 1.5),
                         _buildInfoRow(
                           "Total Terbayar",
                           formatRupiah(keuangan['total_terbayar']?.toDouble()),
@@ -654,6 +679,29 @@ class _DetailScreenState extends State<DetailScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+// FORMATTER RIBUAN
+class CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue.copyWith(text: '');
+    String numericOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (numericOnly.isEmpty) return newValue.copyWith(text: '');
+    final format = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: '',
+      decimalDigits: 0,
+    );
+    String formatted = format.format(int.parse(numericOnly));
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }
