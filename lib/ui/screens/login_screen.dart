@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:front_bengkel/ui/screens/dashboard_screen.dart';
+import 'package:front_bengkel/ui/screens/lupa_password_screen.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -98,6 +99,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "Lupa Password?",
+                    style: TextStyle(color: Color(0xFF005088)),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 32),
 
               isLoading
