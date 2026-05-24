@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../providers/pesanan_provider.dart';
 
-// 1. Buat kelas bantuan untuk menyimpan controller tiap-tiap baris material
 class MaterialInputItem {
   TextEditingController namaCtrl = TextEditingController();
   TextEditingController qtyCtrl = TextEditingController();
@@ -24,64 +23,84 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
   final _namaCustomerCtrl = TextEditingController();
   final _alamatCtrl = TextEditingController();
   final _noTelpCtrl = TextEditingController();
-  final _hargaJualCtrl = TextEditingController();
 
-  // variabel desainer
+  final List<MaterialInputItem> _listMaterial = [MaterialInputItem()];
+
   bool _pakaiJasaDesainer = false;
   final _biayaDesainerCtrl = TextEditingController();
 
-  // Default-nya kita sediakan 1 baris kosong saat halaman dibuka
-  final List<MaterialInputItem> _listMaterial = [MaterialInputItem()];
+  // Variabel Finansial Baru
+  double _totalHPP = 0.0;
+  final _marginCtrl = TextEditingController(text: "50"); // Default Margin 50%
+  final _hargaJualCtrl = TextEditingController();
 
-  // FUNGSI BARU: Kalkulasi otomatis Harga Jual (+50% Margin)
-  void _kalkulasiOtomatis() {
-    double totalHPP = 0.0;
+  // 1. Fungsi Menghitung Total HPP (Material + Desainer)
+  void _updateHPP() {
+    double hpp = 0.0;
 
-    // 1. Hitung total biaya material
     for (var item in _listMaterial) {
       int qty = int.tryParse(item.qtyCtrl.text.replaceAll('.', '')) ?? 0;
       double harga =
           double.tryParse(item.hargaCtrl.text.replaceAll('.', '')) ?? 0.0;
-      totalHPP += (qty * harga);
+      hpp += (qty * harga);
     }
 
-    // 2. Tambahkan biaya desainer jika dipakai
     if (_pakaiJasaDesainer) {
       double biayaDesain =
           double.tryParse(_biayaDesainerCtrl.text.replaceAll('.', '')) ?? 0.0;
-      totalHPP += biayaDesain;
+      hpp += biayaDesain;
     }
 
-    // 3. Kalkulasi Margin 50%
-    if (totalHPP > 0) {
-      double saranHargaJual = totalHPP + (totalHPP * 0.5); // HPP + 50%
+    setState(() {
+      _totalHPP = hpp;
+    });
 
-      // Format ke ribuan sebelum dimasukkan ke controller
-      final format = NumberFormat.currency(
-        locale: 'id_ID',
-        symbol: '',
-        decimalDigits: 0,
-      );
-      _hargaJualCtrl.text = format.format(saranHargaJual);
-    } else {
-      _hargaJualCtrl.clear();
-    }
+    // Setelah HPP diupdate, otomatis hitung ulang Harga Jual berdasarkan persentase Margin saat ini
+    _updateHargaJualDariMargin();
   }
 
-  // Fungsi untuk menambah baris material baru
+  // 2. Fungsi: Margin -> Harga Jual
+  void _updateHargaJualDariMargin() {
+    if (_totalHPP == 0) {
+      _hargaJualCtrl.clear();
+      return;
+    }
+
+    double marginPersen = double.tryParse(_marginCtrl.text) ?? 0.0;
+    double hargaJual = _totalHPP + (_totalHPP * (marginPersen / 100));
+
+    final format = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: '',
+      decimalDigits: 0,
+    );
+    _hargaJualCtrl.text = format.format(hargaJual);
+  }
+
+  // 3. Fungsi: Harga Jual -> Margin (Untuk skenario Negosiasi)
+  void _updateMarginDariHargaJual() {
+    if (_totalHPP == 0) return;
+
+    double hargaJual =
+        double.tryParse(_hargaJualCtrl.text.replaceAll('.', '')) ?? 0.0;
+    double marginPersen = ((hargaJual - _totalHPP) / _totalHPP) * 100;
+
+    // Format agar tidak kepanjangan desimalnya (contoh: 45.5% atau 50%)
+    _marginCtrl.text = marginPersen.toStringAsFixed(1).replaceAll('.0', '');
+  }
+
   void _tambahBarisMaterial() {
     setState(() {
       _listMaterial.add(MaterialInputItem());
     });
   }
 
-  // Fungsi untuk menghapus baris material
   void _hapusBarisMaterial(int index) {
     if (_listMaterial.length > 1) {
       setState(() {
         _listMaterial.removeAt(index);
       });
-      _kalkulasiOtomatis(); // Hitung ulang setelah dihapus
+      _updateHPP();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Minimal harus ada 1 material!")),
@@ -92,7 +111,6 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
   void _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Bersihkan titik ribuan sebelum dikirim ke backend Golang
     List<Map<String, dynamic>> payloadMaterials = _listMaterial.map((item) {
       int qty = int.tryParse(item.qtyCtrl.text.replaceAll('.', '')) ?? 0;
       double harga =
@@ -149,6 +167,15 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
     }
   }
 
+  String _formatRupiahLabel(double amount) {
+    final format = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
+    return format.format(amount);
+  }
+
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -181,6 +208,7 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // ================= SECTION 1: PELANGGAN =================
             _buildSectionTitle("1. Data Pelanggan"),
             TextFormField(
               controller: _namaCustomerCtrl,
@@ -208,90 +236,11 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
               keyboardType: TextInputType.phone,
             ),
 
-            _buildSectionTitle("2. Detail Finansial"),
-            TextFormField(
-              controller: _hargaJualCtrl,
-              decoration: const InputDecoration(
-                labelText: "Harga Jual Proyek (Rp)",
-                border: OutlineInputBorder(),
-                helperText:
-                    "Otomatis +50% dari HPP. Bisa diedit jika ada negosiasi.",
-                helperStyle: TextStyle(color: Colors.green),
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [CurrencyInputFormatter()], // Format Ribuan
-              validator: (val) => val!.isEmpty ? "Wajib diisi" : null,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Bagian jasa desainer (opsional)
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                side: BorderSide(
-                  color: _pakaiJasaDesainer
-                      ? const Color(0xFF11caa0)
-                      : Colors.grey.shade300,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  CheckboxListTile(
-                    title: const Text(
-                      "Gunakan Jasa Desainer?",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: const Text(
-                      "Beri centang jika proyek ini butuh desain awal",
-                    ),
-                    value: _pakaiJasaDesainer,
-                    activeColor: const Color(0xFF11caa0),
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _pakaiJasaDesainer = value ?? false;
-                        if (!_pakaiJasaDesainer) {
-                          _biayaDesainerCtrl.clear();
-                        }
-                        _kalkulasiOtomatis(); // Hitung ulang saat dicentang/hapus centang
-                      });
-                    },
-                  ),
-                  if (_pakaiJasaDesainer)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 16.0,
-                        right: 16.0,
-                        bottom: 16.0,
-                      ),
-                      child: TextFormField(
-                        controller: _biayaDesainerCtrl,
-                        decoration: const InputDecoration(
-                          labelText: "Biaya Jasa Desainer (Rp)",
-                          border: OutlineInputBorder(),
-                          filled: true,
-                          fillColor: Colors.white,
-                        ),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          CurrencyInputFormatter(),
-                        ], // Format Ribuan
-                        onChanged: (val) =>
-                            _kalkulasiOtomatis(), // Trigger hitung otomatis
-                        validator: (val) => _pakaiJasaDesainer && val!.isEmpty
-                            ? "Biaya jasa wajib diisi"
-                            : null,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
+            // ================= SECTION 2: MATERIAL =================
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildSectionTitle("3. Kebutuhan Material"),
+                _buildSectionTitle("2. Kebutuhan Material"),
                 TextButton.icon(
                   onPressed: _tambahBarisMaterial,
                   icon: const Icon(Icons.add_circle, color: Color(0xFF11caa0)),
@@ -302,8 +251,6 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
                 ),
               ],
             ),
-
-            // Looping untuk merender list material secara dinamis
             ...List.generate(_listMaterial.length, (index) {
               return Card(
                 color: Colors.blue[50],
@@ -333,8 +280,7 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
                       TextFormField(
                         controller: _listMaterial[index].namaCtrl,
                         decoration: const InputDecoration(
-                          labelText:
-                              "Nama Material (mis: Baja S45C, Oli, dll...)",
+                          labelText: "Nama Material",
                           filled: true,
                           fillColor: Colors.white,
                         ),
@@ -347,16 +293,14 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
                             child: TextFormField(
                               controller: _listMaterial[index].qtyCtrl,
                               decoration: const InputDecoration(
-                                labelText: "Jumlah (Qty)",
+                                labelText: "Qty",
                                 filled: true,
                                 fillColor: Colors.white,
                               ),
                               keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                CurrencyInputFormatter(),
-                              ], // Mencegah spasi/huruf
+                              inputFormatters: [CurrencyInputFormatter()],
                               onChanged: (val) =>
-                                  _kalkulasiOtomatis(), // Trigger hitung otomatis
+                                  _updateHPP(), // Update Realtime
                               validator: (val) => val!.isEmpty ? "Isi" : null,
                             ),
                           ),
@@ -371,11 +315,9 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
                                 fillColor: Colors.white,
                               ),
                               keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                CurrencyInputFormatter(),
-                              ], // Format Ribuan
+                              inputFormatters: [CurrencyInputFormatter()],
                               onChanged: (val) =>
-                                  _kalkulasiOtomatis(), // Trigger hitung otomatis
+                                  _updateHPP(), // Update Realtime
                               validator: (val) =>
                                   val!.isEmpty ? "Wajib diisi" : null,
                             ),
@@ -387,6 +329,152 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
                 ),
               );
             }),
+
+            // ================= SECTION 3: JASA DESAINER =================
+            _buildSectionTitle("3. Jasa Tambahan"),
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                side: BorderSide(
+                  color: _pakaiJasaDesainer
+                      ? const Color(0xFF11caa0)
+                      : Colors.grey.shade300,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  CheckboxListTile(
+                    title: const Text(
+                      "Gunakan Jasa Desainer?",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    value: _pakaiJasaDesainer,
+                    activeColor: const Color(0xFF11caa0),
+                    onChanged: (bool? value) {
+                      setState(() {
+                        _pakaiJasaDesainer = value ?? false;
+                        if (!_pakaiJasaDesainer) _biayaDesainerCtrl.clear();
+                        _updateHPP(); // Update Realtime
+                      });
+                    },
+                  ),
+                  if (_pakaiJasaDesainer)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 16.0,
+                        right: 16.0,
+                        bottom: 16.0,
+                      ),
+                      child: TextFormField(
+                        controller: _biayaDesainerCtrl,
+                        decoration: const InputDecoration(
+                          labelText: "Biaya Jasa Desainer (Rp)",
+                          border: OutlineInputBorder(),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [CurrencyInputFormatter()],
+                        onChanged: (val) => _updateHPP(), // Update Realtime
+                        validator: (val) => _pakaiJasaDesainer && val!.isEmpty
+                            ? "Wajib diisi"
+                            : null,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // ================= SECTION 4: KALKULASI FINANSIAL =================
+            _buildSectionTitle("4. Penetapan Harga Jual"),
+            Card(
+              // ignore: deprecated_member_use
+              color: const Color(0xFF005088).withOpacity(0.05),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  // ignore: deprecated_member_use
+                  color: const Color(0xFF005088).withOpacity(0.2),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    // Tampilan HPP Realtime
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Total HPP Aktual:",
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                        Text(
+                          _formatRupiahLabel(_totalHPP),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 32, thickness: 1.5),
+
+                    // Input Margin vs Harga Jual
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: TextFormField(
+                            controller: _marginCtrl,
+                            decoration: const InputDecoration(
+                              labelText: "Margin (%)",
+                              border: OutlineInputBorder(),
+                              suffixText: "%",
+                            ),
+                            keyboardType: TextInputType.number,
+                            onChanged: (val) =>
+                                _updateHargaJualDariMargin(), // Jika Margin diubah, update Harga Jual
+                            validator: (val) => val!.isEmpty ? "Isi" : null,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: TextFormField(
+                            controller: _hargaJualCtrl,
+                            decoration: const InputDecoration(
+                              labelText: "Harga Jual Final (Rp)",
+                              border: OutlineInputBorder(),
+                              prefixText: "Rp ",
+                            ),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [CurrencyInputFormatter()],
+                            onChanged: (val) =>
+                                _updateMarginDariHargaJual(), // Jika Harga Jual diubah (nego), update Margin
+                            validator: (val) =>
+                                val!.isEmpty ? "Wajib diisi" : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "*Ubah persentase margin atau edit langsung harga jual jika ada negosiasi dengan klien.",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
             const SizedBox(height: 32),
             isLoading
@@ -413,7 +501,6 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
   }
 }
 
-// FORMATTER RUPIAH BAWAAN
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -421,20 +508,14 @@ class CurrencyInputFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     if (newValue.text.isEmpty) return newValue.copyWith(text: '');
-
-    // Bersihkan semua titik/koma yang ada, ambil angkanya saja
     String numericOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
     if (numericOnly.isEmpty) return newValue.copyWith(text: '');
-
-    // Format ulang menjadi format ribuan (Rupiah) tanpa desimal
     final format = NumberFormat.currency(
       locale: 'id_ID',
       symbol: '',
       decimalDigits: 0,
     );
     String formatted = format.format(int.parse(numericOnly));
-
-    // Kembalikan nilai yang sudah diformat beserta posisi kursornya
     return TextEditingValue(
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),
