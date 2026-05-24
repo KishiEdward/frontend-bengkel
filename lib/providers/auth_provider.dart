@@ -27,4 +27,23 @@ class AuthProvider with ChangeNotifier {
       return false;
     }
   }
+
+  // Tambahkan di bawah fungsi login
+  Future<bool> resetPassword(String email) async {
+    _isLoading = true;
+    _errorMessage = '';
+    notifyListeners();
+
+    try {
+      bool success = await _authService.resetPassword(email);
+      _isLoading = false;
+      notifyListeners();
+      return success;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceAll("Exception: ", "");
+      notifyListeners();
+      return false;
+    }
+  }
 }
