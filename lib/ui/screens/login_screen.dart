@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:front_bengkel/ui/screens/dashboard_screen.dart';
 import 'package:front_bengkel/ui/screens/lupa_password_screen.dart';
+import 'package:front_bengkel/ui/screens/register_screen.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 
@@ -140,6 +141,32 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
+
+              const SizedBox(height: 16),
+              // Button untuk menuju ke halaman registrasi
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Belum punya akun?"),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RegisterScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "Daftar di sini",
+                      style: TextStyle(
+                        color: Color(0xFF11caa0),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
