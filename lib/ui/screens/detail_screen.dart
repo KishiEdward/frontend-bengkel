@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/detail_pesanan_provider.dart';
+import 'package:flutter/services.dart';
 
 class DetailScreen extends StatefulWidget {
   final int pesananId;
@@ -10,6 +11,28 @@ class DetailScreen extends StatefulWidget {
 
   @override
   State<DetailScreen> createState() => _DetailScreenState();
+}
+
+class CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue.copyWith(text: '');
+    String numericOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (numericOnly.isEmpty) return newValue.copyWith(text: '');
+    final format = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: '',
+      decimalDigits: 0,
+    );
+    String formatted = format.format(int.parse(numericOnly));
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
 }
 
 class _DetailScreenState extends State<DetailScreen> {
@@ -41,19 +64,30 @@ class _DetailScreenState extends State<DetailScreen> {
     Color? highlightColor,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 16)),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: isHighlight ? FontWeight.bold : FontWeight.normal,
-              fontSize: 16,
-              color: isHighlight
-                  ? (highlightColor ?? Colors.black)
-                  : Colors.black,
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.grey, fontSize: 15),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontWeight: isHighlight ? FontWeight.bold : FontWeight.w500,
+                fontSize: 15,
+                color: isHighlight
+                    ? (highlightColor ?? Colors.black)
+                    : Colors.black87,
+              ),
             ),
           ),
         ],
@@ -61,7 +95,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  // Dialog untuk Catat Pembayaran
+  // Dialog Pembayaran (Tetap sama)
   void _tampilDialogPembayaran(BuildContext context, int pesananId) {
     String tipePilihan = "DP";
     final nominalCtrl = TextEditingController();
@@ -89,6 +123,9 @@ class _DetailScreenState extends State<DetailScreen> {
                 TextField(
                   controller: nominalCtrl,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    CurrencyInputFormatter(),
+                  ], // FORMAT RIBUAN DITAMBAHKAN
                   decoration: const InputDecoration(
                     labelText: "Jumlah (Rp)",
                     border: OutlineInputBorder(),
@@ -108,23 +145,23 @@ class _DetailScreenState extends State<DetailScreen> {
                 ),
                 onPressed: () async {
                   if (nominalCtrl.text.isEmpty) return;
-                  Navigator.pop(context); // Tutup dialog
+                  Navigator.pop(context);
 
-                  bool sukses =
-                      await Provider.of<DetailPesananProvider>(
-                        context,
-                        listen: false,
-                      ).catatPembayaran(
-                        pesananId,
-                        tipePilihan,
-                        double.parse(nominalCtrl.text),
-                      );
+                  // HAPUS TITIK SEBELUM DI-PARSE KE DOUBLE
+                  double nominalBersih = double.parse(
+                    nominalCtrl.text.replaceAll('.', ''),
+                  );
+
+                  bool sukses = await Provider.of<DetailPesananProvider>(
+                    context,
+                    listen: false,
+                  ).catatPembayaran(pesananId, tipePilihan, nominalBersih);
 
                   if (sukses && mounted) {
                     // ignore: use_build_context_synchronously
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text("Uang masuk berhasil dicatat!"),
+                        content: Text("Uang masuk dicatat!"),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -139,7 +176,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  // Dialog untuk Catat Biaya Tambahan
+  // Dialog Biaya Tambahan (Tetap sama)
   void _tampilDialogBiayaTambahan(BuildContext context, int pesananId) {
     final ketCtrl = TextEditingController();
     final nomCtrl = TextEditingController();
@@ -154,13 +191,19 @@ class _DetailScreenState extends State<DetailScreen> {
             TextField(
               controller: ketCtrl,
               decoration: const InputDecoration(
-                labelText: "Keterangan (Mata bor patah, dll)",
+                labelText: "Keterangan (mis: Mata bor x2)",
               ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: nomCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Nominal (Rp)"),
+              inputFormatters: [
+                CurrencyInputFormatter(),
+              ], // FORMAT RIBUAN DITAMBAHKAN
+              decoration: const InputDecoration(
+                labelText: "Total Nominal (Rp)",
+              ),
             ),
           ],
         ),
@@ -172,17 +215,17 @@ class _DetailScreenState extends State<DetailScreen> {
           ElevatedButton(
             onPressed: () async {
               if (ketCtrl.text.isEmpty || nomCtrl.text.isEmpty) return;
-              Navigator.pop(context); // Tutup dialog
+              Navigator.pop(context);
 
-              bool sukses =
-                  await Provider.of<DetailPesananProvider>(
-                    context,
-                    listen: false,
-                  ).tambahBiayaTakTerduga(
-                    pesananId,
-                    ketCtrl.text,
-                    double.parse(nomCtrl.text),
-                  );
+              // HAPUS TITIK SEBELUM DI-PARSE KE DOUBLE
+              double nominalBersih = double.parse(
+                nomCtrl.text.replaceAll('.', ''),
+              );
+
+              bool sukses = await Provider.of<DetailPesananProvider>(
+                context,
+                listen: false,
+              ).tambahBiayaTakTerduga(pesananId, ketCtrl.text, nominalBersih);
 
               if (sukses && mounted) {
                 // ignore: use_build_context_synchronously
@@ -201,7 +244,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  // Dialog untuk Ubah Status
+  // Dialog Ubah Status (Tetap sama)
   void _tampilDialogUbahStatus(
     BuildContext context,
     int pesananId,
@@ -277,14 +320,29 @@ class _DetailScreenState extends State<DetailScreen> {
 
           final pesanan = provider.detailData!['pesanan'];
           final keuangan = provider.detailData!['keuangan'];
-          final customer = pesanan['customer'];
+          final customer = pesanan['customer'] ?? {};
+
+          // Antisipasi perbedaan format key dari Golang (bisa snake_case atau camelCase)
+          final List listMaterial =
+              pesanan['pesanan_material'] ?? pesanan['PesananMaterial'] ?? [];
+          final List listBiayaTambahan =
+              pesanan['biaya_tambahan'] ?? pesanan['BiayaTambahan'] ?? [];
+
+          // Kalkulasi Persentase Margin
+          double marginBersih = keuangan['margin_aktual']?.toDouble() ?? 0;
+          double hppAktual = keuangan['hpp_aktual']?.toDouble() ?? 0;
+          double persenMargin = hppAktual > 0
+              ? (marginBersih / hppAktual) * 100
+              : 0.0;
+          String textMarginBersih =
+              "${formatRupiah(marginBersih)} (${persenMargin.toStringAsFixed(1)}%)";
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // KARTU INFO CUSTOMER
+                // 1. KARTU INFO CUSTOMER
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(
@@ -323,7 +381,127 @@ class _DetailScreenState extends State<DetailScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // KARTU KALKULASI MARGIN (Jantung Skripsi)
+                // 2. KARTU RINCIAN MATERIAL
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Rincian Material & Jasa",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF005088),
+                          ),
+                        ),
+                        const Divider(),
+                        if (listMaterial.isEmpty)
+                          const Text(
+                            "Tidak ada data material",
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ...listMaterial.map((m) {
+                          // Mengecek struktur JSON material dari Golang
+                          String namaMaterial = m['material'] != null
+                              ? m['material']['nama']
+                              : (m['nama_material'] ?? 'Material');
+                          int qty = m['qty'] ?? 0;
+                          double hargaSatuan =
+                              m['harga_satuan']?.toDouble() ?? 0;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    "$namaMaterial (x$qty)",
+                                    style: const TextStyle(fontSize: 15),
+                                  ),
+                                ),
+                                Text(
+                                  formatRupiah(qty * hargaSatuan),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 3. KARTU RINCIAN BIAYA TAMBAHAN
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Biaya Tambahan (Extra)",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF005088),
+                          ),
+                        ),
+                        const Divider(),
+                        if (listBiayaTambahan.isEmpty)
+                          const Text(
+                            "Belum ada pengeluaran tambahan",
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ...listBiayaTambahan.map((b) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    b['keterangan'] ?? 'Pengeluaran',
+                                    style: const TextStyle(fontSize: 15),
+                                  ),
+                                ),
+                                Text(
+                                  formatRupiah(b['nominal']?.toDouble()),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 4. KARTU KALKULASI MARGIN
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(
@@ -348,13 +526,13 @@ class _DetailScreenState extends State<DetailScreen> {
                           formatRupiah(pesanan['harga_jual']?.toDouble()),
                         ),
                         _buildInfoRow(
-                          "Biaya Material",
+                          "Total Material",
                           "- ${formatRupiah(keuangan['total_biaya_material']?.toDouble())}",
                           isHighlight: true,
                           highlightColor: Colors.red,
                         ),
                         _buildInfoRow(
-                          "Biaya Tambahan",
+                          "Total Tambahan",
                           "- ${formatRupiah(keuangan['total_biaya_tambahan']?.toDouble())}",
                           isHighlight: true,
                           highlightColor: Colors.red,
@@ -362,12 +540,14 @@ class _DetailScreenState extends State<DetailScreen> {
                         const Divider(thickness: 2),
                         _buildInfoRow(
                           "HPP Aktual",
-                          formatRupiah(keuangan['hpp_aktual']?.toDouble()),
+                          formatRupiah(hppAktual),
                           isHighlight: true,
                         ),
+
+                        // Menampilkan Margin beserta persentasenya
                         _buildInfoRow(
                           "Margin Bersih",
-                          formatRupiah(keuangan['margin_aktual']?.toDouble()),
+                          textMarginBersih,
                           isHighlight: true,
                           highlightColor: Colors.green,
                         ),
@@ -377,7 +557,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // KARTU PEMBAYARAN
+                // 5. KARTU PEMBAYARAN
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(
@@ -450,15 +630,12 @@ class _DetailScreenState extends State<DetailScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 32),
-
+                const SizedBox(height: 16),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(
-                      50,
-                    ), // Buat tombol full-lebar
+                    minimumSize: const Size.fromHeight(50),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
