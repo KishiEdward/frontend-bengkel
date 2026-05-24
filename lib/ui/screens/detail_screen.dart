@@ -1,10 +1,9 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/detail_pesanan_provider.dart';
 import 'package:flutter/services.dart';
+import '../../utils/pdf_helper.dart';
 
 class DetailScreen extends StatefulWidget {
   final int pesananId;
@@ -135,6 +134,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   ).catatPembayaran(pesananId, tipePilihan, nominalBersih);
 
                   if (sukses && mounted) {
+                    // ignore: use_build_context_synchronously
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text("Uang masuk dicatat!"),
@@ -201,6 +201,7 @@ class _DetailScreenState extends State<DetailScreen> {
               ).tambahBiayaTakTerduga(pesananId, ketCtrl.text, nominalBersih);
 
               if (sukses && mounted) {
+                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text("Biaya dicatat! Margin diperbarui."),
@@ -298,11 +299,9 @@ class _DetailScreenState extends State<DetailScreen> {
               pesanan['pesanan_material'] ?? pesanan['PesananMaterial'] ?? [];
           final List listBiayaTambahan =
               pesanan['biaya_tambahan'] ?? pesanan['BiayaTambahan'] ?? [];
-          // KODE BARU: Ambil list histori pembayaran masuk
           final List listPembayaran =
               pesanan['pembayaran'] ?? pesanan['Pembayaran'] ?? [];
 
-          // Kalkulasi Persentase Margin
           double marginBersih = keuangan['margin_aktual']?.toDouble() ?? 0;
           double hppAktual = keuangan['hpp_aktual']?.toDouble() ?? 0;
           double persenMargin = hppAktual > 0
@@ -394,6 +393,7 @@ class _DetailScreenState extends State<DetailScreen> {
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
                                   child: Text(
@@ -401,6 +401,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                     style: const TextStyle(fontSize: 15),
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Text(
                                   formatRupiah(qty * hargaSatuan),
                                   style: const TextStyle(
@@ -450,6 +451,7 @@ class _DetailScreenState extends State<DetailScreen> {
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
                                   child: Text(
@@ -457,6 +459,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                     style: const TextStyle(fontSize: 15),
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Text(
                                   formatRupiah(b['nominal']?.toDouble()),
                                   style: const TextStyle(
@@ -528,7 +531,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 5. KARTU PEMBAYARAN (SEKARANG DENGAN HISTORI RINCIAN)
+                // 5. KARTU PEMBAYARAN (DENGAN LAYOUT VERTIKAL YANG DIPERBAIKI)
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(
@@ -548,8 +551,6 @@ class _DetailScreenState extends State<DetailScreen> {
                           ),
                         ),
                         const Divider(),
-
-                        // KODE UPDATE: Menampilkan baris histori per transaksi cicilan/DP
                         if (listPembayaran.isEmpty)
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 6.0),
@@ -568,39 +569,78 @@ class _DetailScreenState extends State<DetailScreen> {
                               ? p['tgl'].toString().substring(0, 10)
                               : '';
                           return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Baris Atas: Judul Pembayaran & Nominal
                                 Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Icon(
-                                      Icons.check_circle,
-                                      size: 16,
-                                      color: Colors.blue,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      "Uang Masuk ($tipe) - $tgl",
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.black87,
+                                    Expanded(
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Padding(
+                                            padding: EdgeInsets.only(top: 2.0),
+                                            child: Icon(
+                                              Icons.check_circle,
+                                              size: 16,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              "Uang Masuk ($tipe)\n$tgl",
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.black87,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          formatRupiah(jumlah),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        GestureDetector(
+                                          onTap: () {
+                                            PdfHelper.cetakKwitansiPembayaran(
+                                              namaKlien:
+                                                  customer['nama'] ??
+                                                  'Pelanggan',
+                                              noPesanan: pesanan['ID']
+                                                  .toString(),
+                                              dataPembayaran: p,
+                                            );
+                                          },
+                                          child: const Icon(
+                                            Icons.print,
+                                            color: Colors.grey,
+                                            size: 50,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ],
-                                ),
-                                Text(
-                                  formatRupiah(jumlah),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
                                 ),
                               ],
                             ),
                           );
                         }),
-
                         const Divider(thickness: 1.5),
                         _buildInfoRow(
                           "Total Terbayar",
