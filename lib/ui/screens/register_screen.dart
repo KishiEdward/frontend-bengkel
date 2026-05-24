@@ -13,6 +13,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  bool _isObscurePassword = true;
+  bool _isObscureConfirm = true;
 
   void _handleRegister() async {
     final email = _emailController.text.trim();
@@ -96,21 +98,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: _isObscurePassword,
+              // HAPUS kata 'const' di sini, dan MASUKKAN suffixIcon ke dalamnya
+              decoration: InputDecoration(
                 labelText: 'Password (Min. 6 Karakter)',
-                prefixIcon: Icon(Icons.lock),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock),
+                border: const OutlineInputBorder(),
+                // Pindah ke sini:
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _isObscurePassword
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isObscurePassword = !_isObscurePassword;
+                    });
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: _isObscureConfirm,
+              // HAPUS kata 'const' di sini juga
+              decoration: InputDecoration(
                 labelText: 'Konfirmasi Password',
-                prefixIcon: Icon(Icons.lock_outline),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock_outline),
+                border: const OutlineInputBorder(),
+                // Pindah ke sini:
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _isObscureConfirm ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isObscureConfirm = !_isObscureConfirm;
+                    });
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 32),
