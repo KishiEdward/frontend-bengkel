@@ -42,10 +42,34 @@ class MarginCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ==========================================
+    // 1. PISAHKAN BIAYA JASA DAN TAMBAHAN LAINNYA
+    // ==========================================
+    double totalBiayaJasa = 0;
+    double totalBiayaLainnya = 0;
+
+    // Catatan: Pastikan `biayaTambahan` adalah nama properti list
+    // biaya tambahan yang ada di dalam class DetailPesananModel milikmu.
+    // Jika namanya berbeda (misal: listBiayaTambahan), silakan disesuaikan.
+    // ignore: unnecessary_null_comparison
+    if (detail.biayaTambahans != null) {
+      for (var biaya in detail.biayaTambahans) {
+        // Gunakan toLowerCase() agar pencarian mengabaikan huruf besar/kecil
+        if (biaya.kategori.toLowerCase() == 'jasa') {
+          totalBiayaJasa += biaya.nominal;
+        } else {
+          totalBiayaLainnya += biaya.nominal;
+        }
+      }
+    }
+
+    // ==========================================
+    // 2. AMBIL HPP & MARGIN DARI BACKEND
+    // ==========================================
+    // Kita tetap bisa menggunakan perhitungan HPP dan Margin dari backend
+    // karena total akhirnya (Material + All Tambahan) tetap sama.
     double margin = detail.keuangan.marginAktual;
-
     double hpp = detail.keuangan.hppAktual;
-
     double persen = hpp > 0 ? (margin / hpp) * 100 : 0;
 
     return Card(
@@ -58,7 +82,6 @@ class MarginCard extends StatelessWidget {
               "Kalkulasi Margin",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
-
             const Divider(),
 
             buildInfoRow("Harga Jual", formatRupiah(detail.hargaJual)),
@@ -69,9 +92,21 @@ class MarginCard extends StatelessWidget {
               color: Colors.red,
             ),
 
+            // ==============================================
+            // BARIS BARU: Tampilkan Biaya Jasa terpisah
+            // ==============================================
+            buildInfoRow(
+              "Biaya Jasa",
+              "- ${formatRupiah(totalBiayaJasa)}",
+              color: Colors.red,
+            ),
+
+            // ==============================================
+            // UPDATE: Tampilkan sisa Biaya Tambahan (Non-Jasa)
+            // ==============================================
             buildInfoRow(
               "Biaya Tambahan",
-              "- ${formatRupiah(detail.keuangan.totalBiayaTambahan)}",
+              "- ${formatRupiah(totalBiayaLainnya)}",
               color: Colors.red,
             ),
 

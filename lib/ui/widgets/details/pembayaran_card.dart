@@ -100,6 +100,58 @@ class PembayaranCard extends StatelessWidget {
               );
             }),
 
+            buildInfoRow(
+              "Biaya Material",
+
+              formatRupiah(detail.keuangan.totalBiayaMaterial),
+
+              isHighlight: true,
+            ),
+
+            buildInfoRow(
+              "Biaya Jasa",
+
+              formatRupiah(detail.keuangan.totalBiayaJasa),
+
+              isHighlight: true,
+
+              color: Colors.orange,
+            ),
+
+            buildInfoRow(
+              "Biaya Tambahan",
+
+              formatRupiah(detail.keuangan.totalBiayaTambahan),
+
+              isHighlight: true,
+
+              color: Colors.red,
+            ),
+
+            buildInfoRow(
+              "HPP Aktual",
+
+              formatRupiah(detail.keuangan.hppAktual),
+
+              isHighlight: true,
+
+              color: Colors.deepOrange,
+            ),
+
+            buildInfoRow(
+              "Margin Aktual",
+
+              formatRupiah(detail.keuangan.marginAktual),
+
+              isHighlight: true,
+
+              color: detail.keuangan.marginAktual < 0
+                  ? Colors.red
+                  : Colors.green,
+            ),
+
+            const Divider(),
+
             const Divider(),
 
             buildInfoRow(

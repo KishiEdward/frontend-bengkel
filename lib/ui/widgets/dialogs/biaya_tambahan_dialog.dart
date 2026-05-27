@@ -13,68 +13,148 @@ class BiayaTambahanDialog {
 
     final nomCtrl = TextEditingController();
 
+    // DEFAULT
+    String kategori = "tambahan";
+
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Catat Biaya Tambahan"),
 
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: ketCtrl,
-              decoration: const InputDecoration(labelText: "Keterangan"),
-            ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text("Catat Biaya"),
 
-            const SizedBox(height: 12),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
 
-            TextField(
-              controller: nomCtrl,
-              keyboardType: TextInputType.number,
+                  children: [
+                    // =====================
+                    // DROPDOWN KATEGORI
+                    // =====================
+                    DropdownButtonFormField<String>(
+                      initialValue: kategori,
 
-              inputFormatters: [CurrencyInputFormatter()],
+                      decoration: const InputDecoration(labelText: "Kategori"),
 
-              decoration: const InputDecoration(labelText: "Nominal (Rp)"),
-            ),
-          ],
-        ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: "jasa",
 
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text("Batal"),
-          ),
+                          child: Text("Jasa Produksi"),
+                        ),
 
-          ElevatedButton(
-            onPressed: () async {
-              if (ketCtrl.text.isEmpty || nomCtrl.text.isEmpty) {
-                return;
-              }
+                        DropdownMenuItem(
+                          value: "tambahan",
 
-              Navigator.pop(context);
+                          child: Text("Biaya Tambahan"),
+                        ),
+                      ],
 
-              double nominal = double.parse(nomCtrl.text.replaceAll('.', ''));
+                      onChanged: (val) {
+                        setState(() {
+                          kategori = val!;
+                        });
+                      },
+                    ),
 
-              bool sukses = await Provider.of<DetailPesananProvider>(
-                context,
-                listen: false,
-              ).tambahBiayaTakTerduga(pesananId, ketCtrl.text, nominal);
+                    const SizedBox(height: 16),
 
-              if (sukses && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Biaya berhasil dicatat"),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-            child: const Text("Simpan"),
-          ),
-        ],
-      ),
+                    // =====================
+                    // KETERANGAN
+                    // =====================
+                    TextField(
+                      controller: ketCtrl,
+
+                      decoration: const InputDecoration(
+                        labelText: "Keterangan",
+
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // =====================
+                    // NOMINAL
+                    // =====================
+                    TextField(
+                      controller: nomCtrl,
+
+                      keyboardType: TextInputType.number,
+
+                      inputFormatters: [CurrencyInputFormatter()],
+
+                      decoration: const InputDecoration(
+                        labelText: "Nominal (Rp)",
+
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+
+                  child: const Text("Batal"),
+                ),
+
+                ElevatedButton(
+                  onPressed: () async {
+                    if (ketCtrl.text.isEmpty || nomCtrl.text.isEmpty) {
+                      return;
+                    }
+
+                    double nominal = double.parse(
+                      nomCtrl.text.replaceAll('.', ''),
+                    );
+
+                    bool sukses =
+                        await Provider.of<DetailPesananProvider>(
+                          context,
+                          listen: false,
+                        ).tambahBiayaTakTerduga(
+                          pesananId,
+
+                          kategori,
+
+                          ketCtrl.text,
+
+                          nominal,
+                        );
+
+                    if (!context.mounted) {
+                      return;
+                    }
+
+                    Navigator.pop(context);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          sukses
+                              ? "Biaya berhasil dicatat"
+                              : "Gagal mencatat biaya",
+                        ),
+
+                        backgroundColor: sukses ? Colors.green : Colors.red,
+                      ),
+                    );
+                  },
+
+                  child: const Text("Simpan"),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

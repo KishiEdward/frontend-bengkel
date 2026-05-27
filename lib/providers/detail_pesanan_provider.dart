@@ -58,12 +58,14 @@ class DetailPesananProvider with ChangeNotifier {
   // =========================
   Future<bool> tambahBiayaTakTerduga(
     int pesananId,
+    String kategori,
     String keterangan,
     double nominal,
   ) async {
     try {
       bool success = await _pesananService.catatBiayaTambahan(
         pesananId,
+        kategori,
         keterangan,
         nominal,
       );
@@ -75,7 +77,9 @@ class DetailPesananProvider with ChangeNotifier {
       return success;
     } catch (e) {
       _errorMessage = e.toString();
+
       notifyListeners();
+
       return false;
     }
   }

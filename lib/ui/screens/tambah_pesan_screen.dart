@@ -43,7 +43,10 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
   // =========================
   bool _pakaiJasaDesainer = false;
 
+  bool _pakaijasaCNC = false;
+
   final _biayaDesainerCtrl = TextEditingController();
+  final _biayaCNCCtrl = TextEditingController();
 
   // =========================
   // FINANCE
@@ -83,6 +86,13 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
           double.tryParse(_biayaDesainerCtrl.text.replaceAll('.', '')) ?? 0.0;
 
       hpp += biayaDesain;
+    }
+
+    if (_pakaijasaCNC) {
+      double biayaCNC =
+          double.tryParse(_biayaCNCCtrl.text.replaceAll('.', '')) ?? 0.0;
+
+      hpp += biayaCNC;
     }
 
     setState(() {
@@ -212,6 +222,10 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
       "biaya_desain": _pakaiJasaDesainer
           ? (double.tryParse(_biayaDesainerCtrl.text.replaceAll('.', '')) ??
                 0.0)
+          : 0.0,
+      "jasa_cnc": _pakaijasaCNC,
+      "biaya_cnc": _pakaijasaCNC
+          ? (double.tryParse(_biayaCNCCtrl.text.replaceAll('.', '')) ?? 0.0)
           : 0.0,
 
       "pesanan_material": payloadMaterials,
@@ -558,6 +572,69 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
 
                         validator: (val) {
                           if (_pakaiJasaDesainer && val!.isEmpty) {
+                            return "Wajib diisi";
+                          }
+
+                          return null;
+                        },
+                      ),
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  CheckboxListTile(
+                    title: const Text(
+                      "Gunakan Jasa CNC?",
+
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+
+                    value: _pakaijasaCNC,
+
+                    activeColor: const Color(0xFF11caa0),
+
+                    onChanged: (bool? value) {
+                      setState(() {
+                        _pakaijasaCNC = value ?? false;
+
+                        if (!_pakaijasaCNC) {
+                          _biayaCNCCtrl.clear();
+                        }
+
+                        _updateHPP();
+                      });
+                    },
+                  ),
+
+                  if (_pakaijasaCNC)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 16.0,
+                        right: 16.0,
+                        bottom: 16.0,
+                      ),
+
+                      child: TextFormField(
+                        controller: _biayaCNCCtrl,
+
+                        decoration: const InputDecoration(
+                          labelText: "Biaya Jasa CNC (Rp)",
+
+                          border: OutlineInputBorder(),
+
+                          filled: true,
+
+                          fillColor: Colors.white,
+                        ),
+
+                        keyboardType: TextInputType.number,
+
+                        inputFormatters: [CurrencyInputFormatter()],
+
+                        onChanged: (val) => _updateHPP(),
+
+                        validator: (val) {
+                          if (_pakaijasaCNC && val!.isEmpty) {
                             return "Wajib diisi";
                           }
 

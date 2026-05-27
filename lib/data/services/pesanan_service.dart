@@ -105,6 +105,7 @@ class PesananService {
   // Fungsi catat pengeluaran tak terduga
   Future<bool> catatBiayaTambahan(
     int pesananId,
+    String kategori,
     String keterangan,
     double nominal,
   ) async {
@@ -113,17 +114,21 @@ class PesananService {
 
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/biaya-tambahan'),
+
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
+
       body: jsonEncode({
         "pesanan_id": pesananId,
+        "kategori": kategori,
         "keterangan": keterangan,
         "nominal": nominal,
       }),
     );
-    return response.statusCode == 201; // Sesuai dengan created 201 di Postman
+
+    return response.statusCode == 201;
   }
 
   // Fungsi catat pembayaran (DP / Lunas)
