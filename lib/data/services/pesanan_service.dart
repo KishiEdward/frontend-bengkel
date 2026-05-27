@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants.dart';
 import '../models/pesanan_model.dart';
+import '../models/detail_pesanan_model.dart';
 
 class PesananService {
   Future<List<Pesanan>> getSemuaPesanan() async {
@@ -36,7 +37,7 @@ class PesananService {
   }
 
   // Mengambil detail pesanan beserta kalkulasi margin dari backend
-  Future<Map<String, dynamic>> getDetailPesanan(int id) async {
+  Future<DetailPesananModel> getDetailPesanan(int id) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('jwt_token');
 
@@ -54,8 +55,8 @@ class PesananService {
 
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);
-      // Backend mengembalikan { data: { pesanan: {...}, keuangan: {...} } }
-      return responseData['data'];
+
+      return DetailPesananModel.fromJson(responseData['data']);
     } else {
       throw Exception("Gagal mengambil detail pesanan");
     }

@@ -1,26 +1,31 @@
 import 'package:flutter/material.dart';
+
+import '../data/models/detail_pesanan_model.dart';
 import '../data/services/pesanan_service.dart';
 
 class DetailPesananProvider with ChangeNotifier {
   final PesananService _pesananService = PesananService();
 
-  Map<String, dynamic>? _detailData;
+  DetailPesananModel? _detailPesanan;
   bool _isLoading = false;
   String _errorMessage = '';
 
-  Map<String, dynamic>? get detailData => _detailData;
+  DetailPesananModel? get detailPesanan => _detailPesanan;
   bool get isLoading => _isLoading;
   String get errorMessage => _errorMessage;
 
+  // =========================
+  // FETCH DETAIL PESANAN
+  // =========================
   Future<void> fetchDetailPesanan(int id) async {
     _isLoading = true;
     _errorMessage = '';
-    // Kosongkan data lama agar tidak muncul saat buka pesanan lain
-    _detailData = null;
     notifyListeners();
 
     try {
-      _detailData = await _pesananService.getDetailPesanan(id);
+      final result = await _pesananService.getDetailPesanan(id);
+
+      _detailPesanan = result;
     } catch (e) {
       _errorMessage = e.toString().replaceAll("Exception: ", "");
     } finally {
@@ -29,63 +34,76 @@ class DetailPesananProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> ubahStatusPesanan(int id, String statusBaru) async {
-    _isLoading = true;
-    notifyListeners();
+  // =========================
+  // UPDATE STATUS
+  // =========================
+  Future<bool> ubahStatusPesanan(int pesananId, String status) async {
     try {
-      bool success = await _pesananService.updateStatus(id, statusBaru);
+      bool success = await _pesananService.updateStatus(pesananId, status);
+
       if (success) {
-        await fetchDetailPesanan(id); // Langsung refresh data terbaru
+        await fetchDetailPesanan(pesananId);
       }
+
       return success;
     } catch (e) {
       _errorMessage = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
       notifyListeners();
+      return false;
     }
   }
 
+  // =========================
+  // TAMBAH BIAYA
+  // =========================
   Future<bool> tambahBiayaTakTerduga(
-    int id,
+    int pesananId,
     String keterangan,
     double nominal,
   ) async {
-    _isLoading = true;
-    notifyListeners();
     try {
       bool success = await _pesananService.catatBiayaTambahan(
-        id,
+        pesananId,
         keterangan,
         nominal,
       );
+
       if (success) {
-        await fetchDetailPesanan(id); // Langsung refresh HPP dan Margin
+        await fetchDetailPesanan(pesananId);
       }
+
       return success;
     } catch (e) {
       _errorMessage = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
       notifyListeners();
+      return false;
     }
   }
 
-  Future<bool> catatPembayaran(int id, String tipe, double jumlah) async {
-    _isLoading = true;
-    notifyListeners();
+  // =========================
+  // CATAT PEMBAYARAN
+  // =========================
+  Future<bool> catatPembayaran(
+    int pesananId,
+    String tipe,
+    double jumlah,
+  ) async {
     try {
-      bool success = await _pesananService.catatPembayaran(id, tipe, jumlah);
-      if (success) await fetchDetailPesanan(id); // Refresh Sisa Tagihan terbaru
+      bool success = await _pesananService.catatPembayaran(
+        pesananId,
+        tipe,
+        jumlah,
+      );
+
+      if (success) {
+        await fetchDetailPesanan(pesananId);
+      }
+
       return success;
     } catch (e) {
       _errorMessage = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
       notifyListeners();
+      return false;
     }
   }
 }
