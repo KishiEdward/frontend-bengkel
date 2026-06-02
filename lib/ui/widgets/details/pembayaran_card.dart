@@ -43,6 +43,23 @@ class PembayaranCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ==========================================
+    // 1. COPY-PASTE LOGIKA DARI MARGIN CARD
+    // ==========================================
+    double totalBiayaJasa = 0;
+    double totalBiayaLainnya = 0;
+
+    // ignore: unnecessary_null_comparison
+    if (detail.biayaTambahans != null) {
+      for (var biaya in detail.biayaTambahans) {
+        if (biaya.kategori.toLowerCase() == 'jasa') {
+          totalBiayaJasa += biaya.nominal;
+        } else {
+          totalBiayaLainnya += biaya.nominal;
+        }
+      }
+    }
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -53,11 +70,8 @@ class PembayaranCard extends StatelessWidget {
               "Riwayat Pembayaran",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
-
             const Divider(),
-
             if (detail.pembayarans.isEmpty) const Text("Belum ada pembayaran"),
-
             ...detail.pembayarans.map((p) {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -68,7 +82,6 @@ class PembayaranCard extends StatelessWidget {
                     Expanded(
                       child: Text("${p.tipe}\n${p.tgl.substring(0, 10)}"),
                     ),
-
                     Row(
                       children: [
                         Text(
@@ -78,7 +91,6 @@ class PembayaranCard extends StatelessWidget {
                             color: Colors.blue,
                           ),
                         ),
-
                         IconButton(
                           onPressed: () {
                             PdfHelper.cetakKwitansiPembayaran(
@@ -89,6 +101,10 @@ class PembayaranCard extends StatelessWidget {
                                 "jumlah": p.jumlah,
                                 "tgl": p.tgl,
                               },
+                              totalTagihan:
+                                  detail.keuangan.totalTerbayar +
+                                  detail.keuangan.sisaTagihan,
+                              sisaTagihan: detail.keuangan.sisaTagihan,
                             );
                           },
                           icon: const Icon(Icons.print),
@@ -100,59 +116,19 @@ class PembayaranCard extends StatelessWidget {
               );
             }),
 
+            const SizedBox(
+              height: 16,
+            ), // Beri jarak sedikit sebelum rekap biaya
+            // ==========================================
+            // 2. GANTI PEMANGGILAN VARIABEL DI SINI
+            // ==========================================
+           
+           
             buildInfoRow(
-              "Biaya Material",
-
-              formatRupiah(detail.keuangan.totalBiayaMaterial),
-
+              "Total Tagihan",
+              formatRupiah(detail.hargaJual),
               isHighlight: true,
             ),
-
-            buildInfoRow(
-              "Biaya Jasa",
-
-              formatRupiah(detail.keuangan.totalBiayaJasa),
-
-              isHighlight: true,
-
-              color: Colors.orange,
-            ),
-
-            buildInfoRow(
-              "Biaya Tambahan",
-
-              formatRupiah(detail.keuangan.totalBiayaTambahan),
-
-              isHighlight: true,
-
-              color: Colors.red,
-            ),
-
-            buildInfoRow(
-              "HPP Aktual",
-
-              formatRupiah(detail.keuangan.hppAktual),
-
-              isHighlight: true,
-
-              color: Colors.deepOrange,
-            ),
-
-            buildInfoRow(
-              "Margin Aktual",
-
-              formatRupiah(detail.keuangan.marginAktual),
-
-              isHighlight: true,
-
-              color: detail.keuangan.marginAktual < 0
-                  ? Colors.red
-                  : Colors.green,
-            ),
-
-            const Divider(),
-
-            const Divider(),
 
             buildInfoRow(
               "Total Terbayar",
@@ -160,12 +136,17 @@ class PembayaranCard extends StatelessWidget {
               isHighlight: true,
               color: Colors.blue,
             ),
-
+            // HAPUS KODE INI:
+            // GANTI MENJADI SEPERTI INI:
             buildInfoRow(
               "Sisa Tagihan",
-              formatRupiah(detail.keuangan.sisaTagihan),
+              detail.keuangan.sisaTagihan <= 0
+                  ? "LUNAS"
+                  : formatRupiah(detail.keuangan.sisaTagihan),
               isHighlight: true,
-              color: Colors.red,
+              color: detail.keuangan.sisaTagihan <= 0
+                  ? Colors.green
+                  : Colors.red,
             ),
           ],
         ),

@@ -27,6 +27,7 @@ class TambahPesananScreen extends StatefulWidget {
 
 class _TambahPesananScreenState extends State<TambahPesananScreen> {
   final _formKey = GlobalKey<FormState>();
+  DateTime? _selectedDeadline; // <--- INI DIA TEMPATNYA!
 
   // =========================
   // CUSTOMER
@@ -207,10 +208,11 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
 
       "tgl_order": DateTime.now().toUtc().toIso8601String(),
 
-      "tgl_deadline": DateTime.now()
-          .add(const Duration(days: 7))
-          .toUtc()
-          .toIso8601String(),
+      // GANTI MENJADI SEPERTI INI:
+      "tgl_deadline":
+          (_selectedDeadline ?? DateTime.now().add(const Duration(days: 7)))
+              .toUtc()
+              .toIso8601String(),
 
       "harga_jual":
           double.tryParse(_hargaJualCtrl.text.replaceAll('.', '')) ?? 0.0,
@@ -316,6 +318,7 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
           padding: const EdgeInsets.all(16),
 
           children: [
+            
             // =====================
             // CUSTOMER
             // =====================
@@ -325,6 +328,48 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
               },
             ),
 
+            // Desain tombol untuk memilih tanggal deadline
+            _buildSectionTitle("2. Tanggal Deadline"),
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade400),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListTile(
+                title: Text(
+                  _selectedDeadline == null
+                      ? 'Pilih Tanggal Deadline'
+                      : 'Deadline: ${DateFormat('dd-MM-yyyy').format(_selectedDeadline!)}',
+                  style: TextStyle(
+                    color: _selectedDeadline == null
+                        ? Colors.grey.shade600
+                        : Colors.black,
+                  ),
+                ),
+                trailing: const Icon(Icons.calendar_today, color: Colors.blue),
+                onTap: () async {
+                  // Memunculkan popup kalender saat ditekan
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate:
+                        _selectedDeadline ??
+                        DateTime.now().add(const Duration(days: 7)),
+                    firstDate:
+                        DateTime.now(), // Tidak bisa pilih tanggal di masa lalu
+                    lastDate: DateTime(2030),
+                  );
+
+                  // Jika user memilih tanggal, simpan ke variabel
+                  if (picked != null && picked != _selectedDeadline) {
+                    setState(() {
+                      _selectedDeadline = picked;
+                    });
+                  }
+                },
+              ),
+            ),
+
             // =====================
             // MATERIAL
             // =====================
@@ -332,7 +377,7 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
               children: [
-                _buildSectionTitle("2. Kebutuhan Material"),
+                _buildSectionTitle("3. Kebutuhan Material"),
 
                 TextButton.icon(
                   onPressed: _tambahBarisMaterial,
@@ -502,7 +547,7 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
             // =====================
             // DESIGNER
             // =====================
-            _buildSectionTitle("3. Jasa Tambahan"),
+            _buildSectionTitle("4. Jasa Tambahan"),
 
             Card(
               elevation: 0,
@@ -649,7 +694,7 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
             // =====================
             // FINANCE
             // =====================
-            _buildSectionTitle("4. Penetapan Harga Jual"),
+            _buildSectionTitle("5. Penetapan Harga Jual"),
 
             Card(
               // ignore: deprecated_member_use
