@@ -60,6 +60,9 @@ class PembayaranCard extends StatelessWidget {
       }
     }
 
+    // Variabel untuk menghitung riwayat secara historis
+    double akumulasiPembayaran = 0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -72,7 +75,22 @@ class PembayaranCard extends StatelessWidget {
             ),
             const Divider(),
             if (detail.pembayarans.isEmpty) const Text("Belum ada pembayaran"),
+
+            // ==========================================
+            // 2. PERBAIKAN LOGIKA CETAK KWITANSI
+            // ==========================================
             ...detail.pembayarans.map((p) {
+              // Simpan nominal yang sudah dibayar SEBELUM baris ini
+              double akumulasiSebelumnya = akumulasiPembayaran;
+
+              // Baru setelah itu, tambahkan jumlah bayar saat ini ke dalam akumulasi
+              akumulasiPembayaran += p.jumlah;
+
+              // Hitung sisa tagihan persis pada saat pembayaran ini terjadi
+              double sisaSaatIni = detail.hargaJual - akumulasiPembayaran;
+              if (sisaSaatIni < 0)
+                sisaSaatIni = 0; // Mencegah minus jika ada kelebihan bayar
+
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
@@ -101,10 +119,10 @@ class PembayaranCard extends StatelessWidget {
                                 "jumlah": p.jumlah,
                                 "tgl": p.tgl,
                               },
-                              totalTagihan:
-                                  detail.keuangan.totalTerbayar +
-                                  detail.keuangan.sisaTagihan,
-                              sisaTagihan: detail.keuangan.sisaTagihan,
+                              totalTagihan: detail.hargaJual,
+                              pembayaranSebelumnya:
+                                  akumulasiSebelumnya, // <--- KIRIM DATA SEBELUMNYA KE SINI
+                              sisaTagihan: sisaSaatIni,
                             );
                           },
                           icon: const Icon(Icons.print),
@@ -114,16 +132,10 @@ class PembayaranCard extends StatelessWidget {
                   ],
                 ),
               );
-            }),
+            }).toList(),
 
-            const SizedBox(
-              height: 16,
-            ), // Beri jarak sedikit sebelum rekap biaya
-            // ==========================================
-            // 2. GANTI PEMANGGILAN VARIABEL DI SINI
-            // ==========================================
-           
-           
+            const SizedBox(height: 16),
+
             buildInfoRow(
               "Total Tagihan",
               formatRupiah(detail.hargaJual),
@@ -136,8 +148,7 @@ class PembayaranCard extends StatelessWidget {
               isHighlight: true,
               color: Colors.blue,
             ),
-            // HAPUS KODE INI:
-            // GANTI MENJADI SEPERTI INI:
+
             buildInfoRow(
               "Sisa Tagihan",
               detail.keuangan.sisaTagihan <= 0

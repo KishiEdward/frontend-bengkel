@@ -158,12 +158,18 @@ class PesananService {
   }
 
   // Fungsi untuk menarik laporan keuangan global
-  Future<Map<String, dynamic>> getLaporanKeuangan() async {
+  Future<Map<String, dynamic>> getLaporanKeuangan({
+    String bulan = 'Semua',
+    String tahun = 'Semua',
+  }) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('jwt_token');
 
+    // Tempelkan variabel bulan dan tahun ke akhir URL
     final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/pesanan/laporan'),
+      Uri.parse(
+        '${AppConstants.baseUrl}/pesanan/laporan?bulan=$bulan&tahun=$tahun',
+      ),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

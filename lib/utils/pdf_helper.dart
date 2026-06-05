@@ -19,6 +19,7 @@ class PdfHelper {
     required String noPesanan,
     required Map<String, dynamic> dataPembayaran,
     required double totalTagihan,
+    required double pembayaranSebelumnya, // <--- PARAMETER BARU KITA
     required double sisaTagihan,
   }) async {
     final pdf = pw.Document();
@@ -120,7 +121,7 @@ class PdfHelper {
               ),
               pw.SizedBox(height: 32),
 
-              // --- KOTAK PERHITUNGAN BIAYA (TOTAL, DP, SISA) ---
+              // --- KOTAK PERHITUNGAN BIAYA ---
               pw.Container(
                 padding: const pw.EdgeInsets.all(16),
                 decoration: pw.BoxDecoration(
@@ -134,8 +135,17 @@ class PdfHelper {
                       "Total Keseluruhan Tagihan",
                       totalTagihan,
                     ),
+
+                    // --- MUNCUL JIKA ADA DP/CICILAN SEBELUMNYA ---
+                    if (pembayaranSebelumnya > 0) ...[
+                      pw.SizedBox(height: 8),
+                      _buildCalculationRow(
+                        "Telah Dibayar Sebelumnya",
+                        pembayaranSebelumnya,
+                      ),
+                    ],
+
                     pw.SizedBox(height: 8),
-                    // Pembayaran saat ini (Bisa DP atau Pelunasan)
                     _buildCalculationRow(
                       "Pembayaran Saat Ini ($tipe)",
                       jumlahBayar,

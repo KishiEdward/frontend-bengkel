@@ -12,13 +12,21 @@ class LaporanProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String get errorMessage => _errorMessage;
 
-  Future<void> fetchLaporan() async {
+  // Parameter bulan dan tahun ditambahkan di sini
+  Future<void> fetchLaporan({
+    String bulan = 'Semua',
+    String tahun = 'Semua',
+  }) async {
     _isLoading = true;
     _errorMessage = '';
     notifyListeners();
 
     try {
-      _laporanData = await _pesananService.getLaporanKeuangan();
+      // Mengirimkan bulan dan tahun ke service
+      _laporanData = await _pesananService.getLaporanKeuangan(
+        bulan: bulan,
+        tahun: tahun,
+      );
     } catch (e) {
       _errorMessage = e.toString().replaceAll("Exception: ", "");
     } finally {
