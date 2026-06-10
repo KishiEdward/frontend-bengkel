@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/models/detail_pesanan_model.dart';
 import '../../../utils/pdf_helper.dart';
+import '../../../core/constants.dart'; // Tambahan untuk mengakses baseUrl
 
 class PembayaranCard extends StatelessWidget {
   final DetailPesananModel detail;
@@ -43,13 +44,9 @@ class PembayaranCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ==========================================
-    // 1. COPY-PASTE LOGIKA DARI MARGIN CARD
-    // ==========================================
     double totalBiayaJasa = 0;
     double totalBiayaLainnya = 0;
 
-    // ignore: unnecessary_null_comparison
     if (detail.biayaTambahans != null) {
       for (var biaya in detail.biayaTambahans) {
         if (biaya.kategori.toLowerCase() == 'jasa') {
@@ -60,7 +57,6 @@ class PembayaranCard extends StatelessWidget {
       }
     }
 
-    // Variabel untuk menghitung riwayat secara historis
     double akumulasiPembayaran = 0;
 
     return Card(
@@ -76,20 +72,12 @@ class PembayaranCard extends StatelessWidget {
             const Divider(),
             if (detail.pembayarans.isEmpty) const Text("Belum ada pembayaran"),
 
-            // ==========================================
-            // 2. PERBAIKAN LOGIKA CETAK KWITANSI
-            // ==========================================
             ...detail.pembayarans.map((p) {
-              // Simpan nominal yang sudah dibayar SEBELUM baris ini
               double akumulasiSebelumnya = akumulasiPembayaran;
-
-              // Baru setelah itu, tambahkan jumlah bayar saat ini ke dalam akumulasi
               akumulasiPembayaran += p.jumlah;
 
-              // Hitung sisa tagihan persis pada saat pembayaran ini terjadi
               double sisaSaatIni = detail.hargaJual - akumulasiPembayaran;
-              if (sisaSaatIni < 0)
-                sisaSaatIni = 0; // Mencegah minus jika ada kelebihan bayar
+              if (sisaSaatIni < 0) sisaSaatIni = 0;
 
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -109,6 +97,56 @@ class PembayaranCard extends StatelessWidget {
                             color: Colors.blue,
                           ),
                         ),
+
+                        // ==========================================
+                        // TOMBOL LIHAT BUKTI BAYAR (Hanya tampil jika ada URL gambar)
+                        // ==========================================
+                        if (p.buktiBayar != null && p.buktiBayar!.isNotEmpty)
+                          IconButton(
+                            onPressed: () {
+                              // Hilangkan /v1 dari baseUrl jika ada, karena r.Static ada di root server
+                              String host = AppConstants.baseUrl.replaceAll(
+                                '/v1',
+                                '',
+                              );
+                              String fullImageUrl = '$host${p.buktiBayar}';
+
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text(
+                                    "Bukti Transfer",
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  content: InteractiveViewer(
+                                    child: Image.network(
+                                      fullImageUrl,
+                                      fit: BoxFit.contain,
+                                      errorBuilder:
+                                          (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) => const Text(
+                                            "Gambar gagal dimuat dari server",
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text("Tutup"),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.image, color: Colors.green),
+                            tooltip: "Lihat Bukti Bayar",
+                          ),
+
+                        // Tombol Cetak Kwitansi
                         IconButton(
                           onPressed: () {
                             PdfHelper.cetakKwitansiPembayaran(
@@ -120,27 +158,21 @@ class PembayaranCard extends StatelessWidget {
                                 "tgl": p.tgl,
                               },
                               totalTagihan: detail.hargaJual,
-                              pembayaranSebelumnya:
-                                  akumulasiSebelumnya, // <--- KIRIM DATA SEBELUMNYA KE SINI
+                              pembayaranSebelumnya: akumulasiSebelumnya,
                               sisaTagihan: sisaSaatIni,
                             );
                           },
-                          icon: const Icon(Icons.print),
+                          icon: const Icon(Icons.print, color: Colors.grey),
+                          tooltip: "Cetak Kwitansi",
                         ),
                       ],
                     ),
                   ],
                 ),
               );
-            }).toList(),
+            }),
 
             const SizedBox(height: 16),
-
-            buildInfoRow(
-              "Total Tagihan",
-              formatRupiah(detail.hargaJual),
-              isHighlight: true,
-            ),
 
             buildInfoRow(
               "Total Terbayar",
@@ -148,7 +180,6 @@ class PembayaranCard extends StatelessWidget {
               isHighlight: true,
               color: Colors.blue,
             ),
-
             buildInfoRow(
               "Sisa Tagihan",
               detail.keuangan.sisaTagihan <= 0

@@ -13,13 +13,15 @@ class PdfHelper {
     return formatCurrency.format(number);
   }
 
-  // Fungsi cetak kwitansi modern
+  // ==========================================
+  // 1. FUNGSI CETAK KWITANSI PEMBAYARAN
+  // ==========================================
   static Future<void> cetakKwitansiPembayaran({
     required String namaKlien,
     required String noPesanan,
     required Map<String, dynamic> dataPembayaran,
     required double totalTagihan,
-    required double pembayaranSebelumnya, // <--- PARAMETER BARU KITA
+    required double pembayaranSebelumnya,
     required double sisaTagihan,
   }) async {
     final pdf = pw.Document();
@@ -214,6 +216,182 @@ class PdfHelper {
       name: 'Kwitansi_${namaKlien}_$tipe.pdf',
     );
   }
+
+  // ==========================================
+  // 2. FUNGSI CETAK LAPORAN KEUANGAN
+  // ==========================================
+  static Future<void> cetakLaporanKeuangan({
+    required String periodeBulan,
+    required String periodeTahun,
+    required Map<String, dynamic> ringkasan,
+  }) async {
+    final pdf = pw.Document();
+
+    // Ekstrak Data
+    double totalOmzet = (ringkasan['total_pendapatan'] ?? 0).toDouble();
+    double totalHPP = (ringkasan['total_hpp'] ?? 0).toDouble();
+    double labaBersih = (ringkasan['total_margin'] ?? 0).toDouble();
+    double totalPiutang = (ringkasan['total_piutang'] ?? 0).toDouble();
+    double uangMasukLunas = totalOmzet - totalPiutang;
+    if (uangMasukLunas < 0) uangMasukLunas = 0;
+
+    int jumlahPesanan = (ringkasan['jumlah_pesanan'] ?? 0).toInt();
+    double rincianMaterial = (ringkasan['rincian_material'] ?? 0).toDouble();
+    double rincianJasa = (ringkasan['rincian_jasa'] ?? 0).toDouble();
+    double rincianExtra = (ringkasan['rincian_extra'] ?? 0).toDouble();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // HEADER
+              pw.Center(
+                child: pw.Text(
+                  "LAPORAN KEUANGAN BENGKEL BUBUT",
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  "Periode: $periodeBulan $periodeTahun",
+                  style: const pw.TextStyle(fontSize: 12),
+                ),
+              ),
+              pw.SizedBox(height: 24),
+              pw.Divider(),
+              pw.SizedBox(height: 16),
+
+              // RINGKASAN PERFORMA
+              pw.Text(
+                "1. RINGKASAN PERFORMA",
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Table.fromTextArray(
+                context: context,
+                border: pw.TableBorder.all(
+                  color: PdfColors.grey400,
+                  width: 0.5,
+                ),
+                headerStyle: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 11,
+                ),
+                cellStyle: const pw.TextStyle(fontSize: 11),
+                headerDecoration: const pw.BoxDecoration(
+                  color: PdfColors.grey200,
+                ),
+                data: <List<String>>[
+                  ['Keterangan', 'Nominal'],
+                  ['Total Nilai Pesanan (Omzet)', formatRupiah(totalOmzet)],
+                  ['Total HPP & Biaya Extra', formatRupiah(totalHPP)],
+                  ['Estimasi Laba Bersih', formatRupiah(labaBersih)],
+                ],
+              ),
+              pw.SizedBox(height: 24),
+
+              // STATUS PEMBAYARAN KAS
+              pw.Text(
+                "2. STATUS ARUS KAS (PEMBAYARAN)",
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Table.fromTextArray(
+                context: context,
+                border: pw.TableBorder.all(
+                  color: PdfColors.grey400,
+                  width: 0.5,
+                ),
+                cellStyle: const pw.TextStyle(fontSize: 11),
+                data: <List<String>>[
+                  [
+                    'Sudah Dibayar (Lunas / DP Masuk)',
+                    formatRupiah(uangMasukLunas),
+                  ],
+                  ['Belum Dilunasi (Piutang)', formatRupiah(totalPiutang)],
+                ],
+              ),
+              pw.SizedBox(height: 24),
+
+              // RINCIAN OPERASIONAL
+              pw.Text(
+                "3. RINCIAN OPERASIONAL PENGELUARAN",
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                "Total Pesanan Dikerjakan: $jumlahPesanan Pesanan",
+                style: const pw.TextStyle(fontSize: 11),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Table.fromTextArray(
+                context: context,
+                border: pw.TableBorder.all(
+                  color: PdfColors.grey400,
+                  width: 0.5,
+                ),
+                cellStyle: const pw.TextStyle(fontSize: 11),
+                data: <List<String>>[
+                  ['Belanja Material', formatRupiah(rincianMaterial)],
+                  ['Jasa CNC / Tukang', formatRupiah(rincianJasa)],
+                  ['Biaya Tambahan', formatRupiah(rincianExtra)],
+                ],
+              ),
+
+              pw.Spacer(),
+
+              // FOOTER & TTD
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.end,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    children: [
+                      pw.Text(
+                        "Dicetak pada: ${DateFormat('dd MMMM yyyy').format(DateTime.now())}",
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                      pw.SizedBox(height: 40),
+                      pw.Text(
+                        "( Admin Bengkel )",
+                        style: const pw.TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Laporan_Keuangan_Bengkel_${periodeBulan}_$periodeTahun.pdf',
+    );
+  }
+
+  // ==========================================
+  // WIDGET HELPER
+  // ==========================================
 
   // Widget helper untuk merapikan teks informasi atas
   static pw.Widget _buildInfoColumn(

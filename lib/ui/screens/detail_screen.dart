@@ -28,7 +28,6 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<DetailPesananProvider>(
         context,
@@ -38,37 +37,26 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   // =========================
-  // FORMAT RUPIAH
+  // DIALOG PEMBAYARAN (Tambahan parameter sisa tagihan)
   // =========================
-  String formatRupiah(double? number) {
-    if (number == null) {
-      return "Rp 0";
-    }
-
-    return NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    ).format(number);
+  void tampilDialogPembayaran(
+    BuildContext context,
+    int pesananId,
+    double sisaTagihan,
+    String statusPesanan, // TAMBAHAN: Menerima status dari screen
+  ) {
+    PembayaranDialog.show(
+      context,
+      pesananId: pesananId,
+      sisaTagihan: sisaTagihan,
+      statusPesanan: statusPesanan,
+    );
   }
 
-  // =========================
-  // DIALOG PEMBAYARAN
-  // =========================
-  void tampilDialogPembayaran(BuildContext context, int pesananId) {
-    PembayaranDialog.show(context, pesananId: pesananId);
-  }
-
-  // =========================
-  // DIALOG BIAYA TAMBAHAN
-  // =========================
   void tampilDialogBiayaTambahan(BuildContext context, int pesananId) {
     BiayaTambahanDialog.show(context, pesananId: pesananId);
   }
 
-  // =========================
-  // DIALOG STATUS
-  // =========================
   void tampilDialogUbahStatus(
     BuildContext context,
     int pesananId,
@@ -85,7 +73,6 @@ class _DetailScreenState extends State<DetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Detail Pesanan")),
-
       body: Consumer<DetailPesananProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
@@ -102,44 +89,30 @@ class _DetailScreenState extends State<DetailScreen> {
 
           final DetailPesananModel detail = provider.detailPesanan!;
 
+          // Mengambil status saat ini (dibuat lowercase untuk pengecekan aman)
+          final String statusLow = detail.status.toLowerCase();
+
+          // Logika Disable Button
+          final bool isSelesai = statusLow == 'selesai';
+          final bool isBatal = statusLow == 'batal';
+          final bool isWIP = statusLow == 'wip';
+
+          // Jika Selesai atau Batal, semua tombol aksi mati (disabled)
+          final bool isLocked = isSelesai || isBatal;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-
             child: Column(
               children: [
-                // =====================
-                // INFO CUSTOMER
-                // =====================
                 InfoCustomerCard(detail: detail),
-
                 const SizedBox(height: 16),
-
-                // =====================
-                // MATERIAL
-                // =====================
                 MaterialCard(detail: detail),
-
                 const SizedBox(height: 16),
-
-                // =====================
-                // BIAYA TAMBAHAN
-                // =====================
                 BiayaTambahanCard(detail: detail),
-
                 const SizedBox(height: 16),
-
-                // =====================
-                // MARGIN
-                // =====================
                 MarginCard(detail: detail),
-
                 const SizedBox(height: 16),
-
-                // =====================
-                // PEMBAYARAN
-                // =====================
                 PembayaranCard(detail: detail),
-
                 const SizedBox(height: 24),
 
                 // =====================
@@ -149,40 +122,50 @@ class _DetailScreenState extends State<DetailScreen> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          tampilDialogUbahStatus(
-                            context,
-                            detail.id,
-                            detail.status,
-                          );
-                        },
+                        // Terkunci jika sudah Selesai atau Batal
+                        onPressed: isLocked
+                            ? null
+                            : () {
+                                tampilDialogUbahStatus(
+                                  context,
+                                  detail.id,
+                                  detail.status,
+                                );
+                              },
                         icon: const Icon(Icons.edit),
                         label: const Text("Status"),
                       ),
                     ),
-
                     const SizedBox(width: 12),
-
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          tampilDialogBiayaTambahan(context, detail.id);
-                        },
+                        // Hanya aktif jika status sedang "WIP"
+                        onPressed: isWIP
+                            ? () {
+                                tampilDialogBiayaTambahan(context, detail.id);
+                              }
+                            : null,
                         icon: const Icon(Icons.money_off),
                         label: const Text("Biaya Tambahan"),
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      tampilDialogPembayaran(context, detail.id);
-                    },
+                    // Terkunci jika sudah Selesai atau Batal
+                    onPressed: isLocked
+                        ? null
+                        : () {
+                            tampilDialogPembayaran(
+                              context,
+                              detail.id,
+                              detail.keuangan.sisaTagihan,
+                              detail.status,
+                            );
+                          },
                     icon: const Icon(Icons.payments),
                     label: const Text("Catat Pembayaran"),
                   ),
@@ -196,33 +179,21 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 }
 
-// =========================
-// FORMATTER RIBUAN
-// =========================
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    if (newValue.text.isEmpty) {
-      return newValue.copyWith(text: '');
-    }
-
+    if (newValue.text.isEmpty) return newValue.copyWith(text: '');
     String numericOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-
-    if (numericOnly.isEmpty) {
-      return newValue.copyWith(text: '');
-    }
-
+    if (numericOnly.isEmpty) return newValue.copyWith(text: '');
     final format = NumberFormat.currency(
       locale: 'id_ID',
       symbol: '',
       decimalDigits: 0,
     );
-
     String formatted = format.format(int.parse(numericOnly));
-
     return TextEditingValue(
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),

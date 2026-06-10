@@ -11,7 +11,34 @@ class StatusDialog {
   }) async {
     String statusPilihan = statusSaatIni;
 
-    final listStatus = ["Menunggu DP", "WIP", "Menunggu Pelunasan", "Selesai"];
+    // Urutan baku status pesanan + Batal di akhir
+    final listSemuaStatus = [
+      "Menunggu DP",
+      "WIP",
+      "Menunggu Pelunasan",
+      "Selesai",
+      "Batal",
+    ];
+
+    // 1. Cari indeks status saat ini
+    int currentIndex = listSemuaStatus.indexOf(statusSaatIni);
+    if (currentIndex == -1) currentIndex = 0;
+
+    // 2. Logika Daftar Status yang Diizinkan
+    List<String> listStatusDiizinkan = [];
+
+    if (statusSaatIni == "Selesai" || statusSaatIni == "Batal") {
+      // Jika sudah Selesai/Batal, tidak bisa diubah ke mana-mana lagi
+      listStatusDiizinkan = [statusSaatIni];
+    } else {
+      // Hanya tampilkan status saat ini dan langkah maju selanjutnya (kecuali Batal)
+      listStatusDiizinkan = listSemuaStatus
+          .sublist(currentIndex)
+          .where((e) => e != "Batal")
+          .toList();
+      // Opsi Batal selalu ada selama belum Selesai
+      listStatusDiizinkan.add("Batal");
+    }
 
     await showDialog(
       context: context,
@@ -19,42 +46,43 @@ class StatusDialog {
         builder: (context, setState) {
           return AlertDialog(
             title: const Text("Ubah Status"),
-
             content: DropdownButtonFormField<String>(
-              initialValue: listStatus.contains(statusSaatIni)
-                  ? statusSaatIni
-                  : "Menunggu DP",
-
-              items: listStatus
+              value: statusPilihan,
+              items: listStatusDiizinkan
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                   .toList(),
-
               onChanged: (val) {
                 setState(() {
                   statusPilihan = val!;
                 });
               },
             ),
-
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text("Batal"),
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Tutup"),
               ),
+              // Sembunyikan tombol Update jika status sudah terkunci
+              if (statusSaatIni != "Selesai" && statusSaatIni != "Batal")
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: statusPilihan == "Batal"
+                        ? Colors.red
+                        : Colors.blue,
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(context);
 
-              ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-
-                  await Provider.of<DetailPesananProvider>(
-                    context,
-                    listen: false,
-                  ).ubahStatusPesanan(pesananId, statusPilihan);
-                },
-                child: const Text("Update"),
-              ),
+                    await Provider.of<DetailPesananProvider>(
+                      context,
+                      listen: false,
+                    ).ubahStatusPesanan(pesananId, statusPilihan);
+                  },
+                  child: const Text(
+                    "Update",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
             ],
           );
         },

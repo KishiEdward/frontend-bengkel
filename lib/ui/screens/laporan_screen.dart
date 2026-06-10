@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:front_bengkel/utils/pdf_helper.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/laporan_provider.dart';
@@ -11,8 +12,9 @@ class LaporanScreen extends StatefulWidget {
 }
 
 class _LaporanScreenState extends State<LaporanScreen> {
-  String selectedMonth = 'Semua';
-  String selectedYear = 'Semua';
+  // 1. ATUR DEFAULT FILTER KE WAKTU SAAT INI
+  late String selectedMonth;
+  late String selectedYear;
 
   final List<String> months = [
     'Semua',
@@ -29,8 +31,23 @@ class _LaporanScreenState extends State<LaporanScreen> {
     '11',
     '12',
   ];
-
   final List<String> years = ['Semua', '2024', '2025', '2026', '2027'];
+
+  @override
+  void initState() {
+    super.initState();
+    // Default: Bulan dan Tahun saat ini
+    final now = DateTime.now();
+    selectedMonth = now.month.toString().padLeft(2, '0');
+    selectedYear = now.year.toString();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<LaporanProvider>(
+        context,
+        listen: false,
+      ).fetchLaporan(bulan: selectedMonth, tahun: selectedYear);
+    });
+  }
 
   String getMonthName(String monthNumber) {
     if (monthNumber == 'Semua') return 'Semua Bulan';
@@ -52,23 +69,27 @@ class _LaporanScreenState extends State<LaporanScreen> {
   }
 
   String formatRupiah(double number) {
-    final formatCurrency = NumberFormat.currency(
+    return NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',
       decimalDigits: 0,
-    );
-    return formatCurrency.format(number);
+    ).format(number);
   }
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<LaporanProvider>(
-        context,
-        listen: false,
-      ).fetchLaporan(bulan: selectedMonth, tahun: selectedYear);
-    });
+  // --- WIDGET HELPER UNTUK SECTION TITLE ---
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w900, // Extra bold
+          color: Colors.black87,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
   }
 
   @override
@@ -82,6 +103,53 @@ class _LaporanScreenState extends State<LaporanScreen> {
         ),
         backgroundColor: const Color(0xFF005088),
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          // 2. TOMBOL EKSPOR PDF DI APPBAR
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: TextButton.icon(
+              onPressed: () async {
+                // Ambil data ringkasan dari provider yang sedang aktif
+                final provider = Provider.of<LaporanProvider>(
+                  context,
+                  listen: false,
+                );
+                final ringkasan = provider.laporanData?['ringkasan_global'];
+
+                if (ringkasan != null) {
+                  // Memanggil PdfHelper untuk membuat dan menampilkan PDF
+                  await PdfHelper.cetakLaporanKeuangan(
+                    periodeBulan: getMonthName(selectedMonth),
+                    periodeTahun: selectedYear,
+                    ringkasan: ringkasan,
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Data laporan belum tersedia"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(
+                Icons.picture_as_pdf,
+                color: Colors.white,
+                size: 18,
+              ),
+              label: const Text(
+                "Ekspor PDF",
+                style: TextStyle(color: Colors.white),
+              ),
+              style: TextButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: Colors.white54),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: Consumer<LaporanProvider>(
         builder: (context, provider, child) {
@@ -101,17 +169,39 @@ class _LaporanScreenState extends State<LaporanScreen> {
 
           final ringkasan = provider.laporanData?['ringkasan_global'] ?? {};
 
+          // Variabel Ringkasan Performa
           double totalOmzet = (ringkasan['total_pendapatan'] ?? 0).toDouble();
           double totalHPP = (ringkasan['total_hpp'] ?? 0).toDouble();
           double labaBersih = (ringkasan['total_margin'] ?? 0).toDouble();
 
-          double totalPiutang = (ringkasan['total_piutang'] ?? 0).toDouble();
+          // Kalkulasi Margin & Rata-rata
           int jumlahPesanan = (ringkasan['jumlah_pesanan'] ?? 0).toInt();
+          double persenMargin = totalOmzet > 0
+              ? (labaBersih / totalOmzet) * 100
+              : 0;
+          double avgPerPesanan = jumlahPesanan > 0
+              ? totalOmzet / jumlahPesanan
+              : 0;
 
+          // Variabel Status Pembayaran
+          double totalPiutang = (ringkasan['total_piutang'] ?? 0).toDouble();
+          double uangMasukLunas =
+              totalOmzet - totalPiutang; // Ini uang kas riil
+          if (uangMasukLunas < 0) uangMasukLunas = 0;
+          double persenKoleksi = totalOmzet > 0
+              ? (uangMasukLunas / totalOmzet) * 100
+              : 0;
+
+          // Variabel Rincian Pengeluaran
           double rincianMaterial = (ringkasan['rincian_material'] ?? 0)
               .toDouble();
           double rincianJasa = (ringkasan['rincian_jasa'] ?? 0).toDouble();
           double rincianExtra = (ringkasan['rincian_extra'] ?? 0).toDouble();
+          int countSelesai = (ringkasan['count_selesai'] ?? 0).toInt();
+          int countMenungguPelunasan =
+              (ringkasan['count_menunggu_pelunasan'] ?? 0).toInt();
+          int countWIP = (ringkasan['count_wip'] ?? 0).toInt();
+          int countMenungguDP = (ringkasan['count_menunggu_dp'] ?? 0).toInt();
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -119,74 +209,56 @@ class _LaporanScreenState extends State<LaporanScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // =================================
-                // 1. BAGIAN FILTER WAKTU
+                // 1. FILTER WAKTU (Desain Minimalis)
                 // =================================
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_month, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_month,
-                        color: Color(0xFF005088),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        "Periode:",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      Expanded(
-                        child: DropdownButton<String>(
-                          isExpanded: true,
-                          value: selectedMonth,
-                          underline: const SizedBox(),
-                          items: months.map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(
-                                getMonthName(value),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                      child: DropdownButton<String>(
+                        value: selectedMonth,
+                        underline: const SizedBox(),
+                        icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+                        items: months.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(
+                              getMonthName(value),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (newValue) {
-                            setState(() {
-                              selectedMonth = newValue!;
-                            });
-                            provider.fetchLaporan(
-                              bulan: selectedMonth,
-                              tahun: selectedYear,
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (v) {
+                          setState(() => selectedMonth = v!);
+                          provider.fetchLaporan(
+                            bulan: selectedMonth,
+                            tahun: selectedYear,
+                          );
+                        },
                       ),
-
-                      const SizedBox(width: 8),
-
-                      DropdownButton<String>(
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: DropdownButton<String>(
                         value: selectedYear,
                         underline: const SizedBox(),
+                        icon: const Icon(Icons.keyboard_arrow_down, size: 16),
                         items: years.map((String value) {
                           return DropdownMenuItem<String>(
                             value: value,
@@ -194,142 +266,314 @@ class _LaporanScreenState extends State<LaporanScreen> {
                               value,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
+                                fontSize: 13,
                               ),
                             ),
                           );
                         }).toList(),
-                        onChanged: (newValue) {
-                          setState(() {
-                            selectedYear = newValue!;
-                          });
+                        onChanged: (v) {
+                          setState(() => selectedYear = v!);
                           provider.fetchLaporan(
                             bulan: selectedMonth,
                             tahun: selectedYear,
                           );
                         },
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-
                 const SizedBox(height: 24),
 
                 if (provider.isLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: 16.0),
-                      child: LinearProgressIndicator(),
-                    ),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: LinearProgressIndicator(),
                   ),
 
-                const Center(
-                  child: Text(
-                    "Ringkasan Performa Bengkel",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF005088),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
                 // =================================
-                // 2. KARTU UTAMA (Omzet, HPP, Laba)
+                // 2. RINGKASAN PERFORMA
                 // =================================
+                _buildSectionTitle("Ringkasan Performa"),
                 _buildMainCard(
-                  title: "Total Pendapatan (Omzet)",
+                  title: "Total Nilai Pesanan (Omzet)",
                   amount: formatRupiah(totalOmzet),
-                  icon: Icons.account_balance_wallet,
-                  color: Colors.blue,
+                  icon: Icons.receipt_long,
+                  color: Colors.blue.shade700,
                   backgroundColor: Colors.blue.shade50,
+                  subtitle: "$jumlahPesanan pesanan",
                 ),
                 const SizedBox(height: 12),
                 _buildMainCard(
                   title: "Total HPP & Biaya Extra",
                   amount: formatRupiah(totalHPP),
-                  icon: Icons.money_off,
-                  color: Colors.red,
+                  icon: Icons.trending_down,
+                  color: Colors.red.shade700,
                   backgroundColor: Colors.red.shade50,
                 ),
                 const SizedBox(height: 12),
                 _buildMainCard(
-                  title: "Total Laba Bersih",
+                  title: "Estimasi Laba Bersih",
                   amount: formatRupiah(labaBersih),
-                  icon: labaBersih >= 0
-                      ? Icons.trending_up
-                      : Icons.trending_down,
-                  color: labaBersih >= 0 ? Colors.green : Colors.red,
-                  backgroundColor: labaBersih >= 0
-                      ? Colors.green.shade50
-                      : Colors.red.shade50,
+                  icon: Icons.trending_up,
+                  color: Colors.green.shade700,
+                  backgroundColor: Colors.green.shade50,
+                  badgeText: "Margin ${persenMargin.toStringAsFixed(1)}%",
                 ),
-
-                const SizedBox(height: 24),
-                const Text(
-                  "Rincian Operasional",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF005088),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 32),
 
                 // =================================
-                // 3. KARTU RINCIAN TAMBAHAN
+                // 3. STATUS PEMBAYARAN (ARUS KAS RIIL)
                 // =================================
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
+                _buildSectionTitle("Status Pembayaran"),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  color: Colors.white,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        _buildDetailRow(
-                          "Jumlah Pesanan",
-                          "$jumlahPesanan Pesanan",
-                          isBold: true,
-                        ),
-                        const Divider(),
-                        _buildDetailRow(
-                          "Total Piutang (Belum Lunas)",
-                          formatRupiah(totalPiutang),
-                          color: Colors.orange,
-                          isBold: true,
-                        ),
-                        const Divider(),
-                        const SizedBox(height: 8),
-                        const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            "Rincian Pengeluaran:",
+                  child: Column(
+                    children: [
+                      _buildDetailRow(
+                        "Sudah dibayar (Lunas/DP Masuk)",
+                        formatRupiah(uangMasukLunas),
+                        color: Colors.green.shade700,
+                        isBold: true,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(
+                        "Belum dilunasi (Piutang)",
+                        formatRupiah(totalPiutang),
+                        color: Colors.orange.shade800,
+                        isBold: true,
+                      ),
+                      const Divider(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Tingkat koleksi",
                             style: TextStyle(
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey,
                             ),
                           ),
+                          Text(
+                            "${persenKoleksi.toStringAsFixed(1)}%",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: persenKoleksi / 100,
+                        backgroundColor: Colors.orange.shade100,
+                        color: Colors.green,
+                        minHeight: 8,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+
+                      // Warning jika piutang > 50%
+                      if (persenKoleksi < 50 && totalOmzet > 0)
+                        Container(
+                          margin: const EdgeInsets.only(top: 16),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                size: 20,
+                                color: Colors.orange.shade800,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "Piutang cukup tinggi (${(100 - persenKoleksi).toStringAsFixed(1)}% dari omzet). Pastikan jadwal penagihan pelunasan berjalan lancar.",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.orange.shade900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        _buildDetailRow(
-                          "• Belanja Material",
-                          formatRupiah(rincianMaterial),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // =================================
+                // 3.5 STATUS PESANAN (KOTAK 2x2)
+                // =================================
+                _buildSectionTitle("Status Pesanan"),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          _buildStatusBox(
+                            "Selesai & Lunas",
+                            countSelesai,
+                            Colors.green,
+                          ),
+                          const SizedBox(width: 12),
+                          _buildStatusBox(
+                            "Menunggu Pelunasan",
+                            countMenungguPelunasan,
+                            Colors.orange,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _buildStatusBox(
+                            "WIP (Dikerjakan)",
+                            countWIP,
+                            Colors.blue,
+                          ),
+                          const SizedBox(width: 12),
+                          _buildStatusBox(
+                            "Menunggu DP",
+                            countMenungguDP,
+                            Colors.purple,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // =================================
+                // 4. METRIK TAMBAHAN
+                // =================================
+                _buildSectionTitle("Metrik Tambahan"),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
                         ),
-                        const SizedBox(height: 4),
-                        _buildDetailRow(
-                          "• Jasa CNC / Tukang",
-                          formatRupiah(rincianJasa),
+                        child: Column(
+                          children: [
+                            Text(
+                              "${persenMargin.toStringAsFixed(1)}%",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                            const Text(
+                              "Margin Laba",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        _buildDetailRow(
-                          "• Biaya Tambahan",
-                          formatRupiah(rincianExtra),
-                        ),
-                      ],
+                      ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              NumberFormat.compactCurrency(
+                                locale: 'id_ID',
+                                symbol: 'Rp',
+                                decimalDigits: 1,
+                              ).format(avgPerPesanan),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            const Text(
+                              "Rata-rata / Pesanan",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // =================================
+                // 5. RINCIAN OPERASIONAL
+                // =================================
+                _buildSectionTitle("Rincian Operasional"),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildDetailRow(
+                        "Jumlah Pesanan",
+                        "$jumlahPesanan Pesanan",
+                        isBold: true,
+                      ),
+                      const Divider(height: 24),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "Rincian pengeluaran:",
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow(
+                        "• Belanja Material",
+                        formatRupiah(rincianMaterial),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildDetailRow(
+                        "• Jasa CNC / Tukang",
+                        formatRupiah(rincianJasa),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildDetailRow(
+                        "• Biaya Tambahan",
+                        formatRupiah(rincianExtra),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -341,26 +585,32 @@ class _LaporanScreenState extends State<LaporanScreen> {
     );
   }
 
+  // Helper untuk Card Utama
   Widget _buildMainCard({
     required String title,
     required String amount,
     required IconData icon,
     required Color color,
     required Color backgroundColor,
+    String? subtitle,
+    String? badgeText,
   }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.white,
-            child: Icon(icon, color: color, size: 32),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -370,7 +620,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey,
                   ),
@@ -384,6 +634,35 @@ class _LaporanScreenState extends State<LaporanScreen> {
                     color: color,
                   ),
                 ),
+
+                if (subtitle != null || badgeText != null)
+                  const SizedBox(height: 6),
+
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+
+                if (badgeText != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      badgeText,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -392,9 +671,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
     );
   }
 
-  // =================================
-  // FUNGSI INI YANG DIUBAH (Anti-Overflow)
-  // =================================
+  // Helper untuk Rincian Row
   Widget _buildDetailRow(
     String label,
     String value, {
@@ -404,7 +681,6 @@ class _LaporanScreenState extends State<LaporanScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Dibungkus Expanded agar teks mengalah jika angka kepanjangan
         Expanded(
           child: Text(
             label,
@@ -415,16 +691,52 @@ class _LaporanScreenState extends State<LaporanScreen> {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        const SizedBox(width: 8), // Jarak pemisah antara teks dan angka
+        const SizedBox(width: 8),
         Text(
           value,
           style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.bold,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
             color: color ?? Colors.black87,
           ),
         ),
       ],
+    );
+  }
+
+  // Helper untuk Kotak Status Pesanan
+  Widget _buildStatusBox(String label, int count, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.05), // Latar belakang sangat transparan
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              count.toString(),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

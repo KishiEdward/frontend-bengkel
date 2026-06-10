@@ -27,12 +27,16 @@ class MarginCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
+          Text(
+            label,
+            style: TextStyle(color: isHighlight ? Colors.black87 : Colors.grey),
+          ),
           Text(
             value,
             style: TextStyle(
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w500,
               color: color ?? Colors.black,
+              fontSize: isHighlight ? 16 : 14,
             ),
           ),
         ],
@@ -42,20 +46,21 @@ class MarginCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ==========================================
-    // 1. PISAHKAN BIAYA JASA DAN TAMBAHAN LAINNYA
-    // ==========================================
     double totalBiayaJasa = 0;
     double totalBiayaLainnya = 0;
 
-    // Catatan: Pastikan `biayaTambahan` adalah nama properti list
-    // biaya tambahan yang ada di dalam class DetailPesananModel milikmu.
-    // Jika namanya berbeda (misal: listBiayaTambahan), silakan disesuaikan.
-    // ignore: unnecessary_null_comparison
     if (detail.biayaTambahans != null) {
       for (var biaya in detail.biayaTambahans) {
-        // Gunakan toLowerCase() agar pencarian mengabaikan huruf besar/kecil
-        if (biaya.kategori.toLowerCase() == 'jasa') {
+        String kategori = (biaya.kategori ?? "").toString().toLowerCase();
+        String ket = (biaya.keterangan ?? "").toString().toLowerCase();
+        bool isJasa =
+            kategori == "jasa" ||
+            ket.contains("jasa") ||
+            ket.contains("designer") ||
+            ket.contains("desainer") ||
+            ket.contains("cnc");
+
+        if (isJasa) {
           totalBiayaJasa += biaya.nominal;
         } else {
           totalBiayaLainnya += biaya.nominal;
@@ -63,62 +68,98 @@ class MarginCard extends StatelessWidget {
       }
     }
 
+    // Kalkulasi Manual
+    double manualHpp =
+        detail.keuangan.totalBiayaMaterial + totalBiayaJasa + totalBiayaLainnya;
+    double manualMargin = detail.hargaJual - manualHpp;
+    double persen = manualHpp > 0 ? (manualMargin / manualHpp) * 100 : 0;
+
     // ==========================================
-    // 2. AMBIL HPP & MARGIN DARI BACKEND
+    // LOGIKA WARNA MARGIN DINAMIS
     // ==========================================
-    // Kita tetap bisa menggunakan perhitungan HPP dan Margin dari backend
-    // karena total akhirnya (Material + All Tambahan) tetap sama.
-    double margin = detail.keuangan.marginAktual;
-    double hpp = detail.keuangan.hppAktual;
-    double persen = hpp > 0 ? (margin / hpp) * 100 : 0;
+    Color marginColor;
+    if (manualMargin > 0) {
+      marginColor = Colors.green; // Untung
+    } else if (manualMargin < 0) {
+      marginColor = Colors.red; // Rugi / Boncos
+    } else {
+      marginColor = Colors.orange.shade700; // Balik Modal (Break Even)
+    }
 
     return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Kalkulasi Margin",
+              "Kalkulasi Keuangan",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             const Divider(),
 
-            buildInfoRow("Harga Jual", formatRupiah(detail.hargaJual)),
-
-            buildInfoRow(
-              "Biaya Material",
-              "- ${formatRupiah(detail.keuangan.totalBiayaMaterial)}",
-              color: Colors.red,
+            // TAMPILAN DETAIL YANG BISA DIBUKA-TUTUP (Logisnya ditaruh di atas HPP)
+            Theme(
+              data: Theme.of(
+                context,
+              ).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text(
+                  "Lihat Rincian Biaya (HPP)",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.blue,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                children: [
+                  buildInfoRow(
+                    "Biaya Material",
+                    "+ ${formatRupiah(detail.keuangan.totalBiayaMaterial)}",
+                    color: Colors.grey.shade700,
+                  ),
+                  buildInfoRow(
+                    "Biaya Jasa",
+                    "+ ${formatRupiah(totalBiayaJasa)}",
+                    color: Colors.grey.shade700,
+                  ),
+                  buildInfoRow(
+                    "Biaya Tambahan",
+                    "+ ${formatRupiah(totalBiayaLainnya)}",
+                    color: Colors.grey.shade700,
+                  ),
+                ],
+              ),
             ),
-
-            // ==============================================
-            // BARIS BARU: Tampilkan Biaya Jasa terpisah
-            // ==============================================
-            buildInfoRow(
-              "Biaya Jasa",
-              "- ${formatRupiah(totalBiayaJasa)}",
-              color: Colors.red,
-            ),
-
-            // ==============================================
-            // UPDATE: Tampilkan sisa Biaya Tambahan (Non-Jasa)
-            // ==============================================
-            buildInfoRow(
-              "Biaya Tambahan",
-              "- ${formatRupiah(totalBiayaLainnya)}",
-              color: Colors.red,
-            ),
-
             const Divider(),
 
-            buildInfoRow("HPP Aktual", formatRupiah(hpp), isHighlight: true),
+            // TAMPILAN RINGKAS DI BAWAH (HPP + Margin = Harga Jual)
+            buildInfoRow(
+              "HPP Aktual",
+              formatRupiah(manualHpp),
+              isHighlight: true,
+              color: Colors.orange.shade700,
+            ),
 
+            // Margin Bersih dengan Warna Dinamis
             buildInfoRow(
               "Margin Bersih",
-              "${formatRupiah(margin)} (${persen.toStringAsFixed(1)}%)",
+              "${formatRupiah(manualMargin)}  (${persen.toStringAsFixed(1)}%)",
               isHighlight: true,
-              color: Colors.green,
+              color: marginColor,
+            ),
+
+            const SizedBox(height: 8),
+
+            // Harga Jual (Disorot pakai warna biru/hitam agar membedakan hasil akhir)
+            buildInfoRow(
+              "Harga Jual (Total)",
+              formatRupiah(detail.hargaJual),
+              isHighlight: true,
+              color: Colors.blue.shade800,
             ),
           ],
         ),
