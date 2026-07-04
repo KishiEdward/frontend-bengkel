@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../data/models/detail_pesanan_model.dart';
@@ -90,16 +92,28 @@ class DetailPesananProvider with ChangeNotifier {
   Future<bool> catatPembayaran(
     int pesananId,
     String tipe,
-    double jumlah,
-  ) async {
+    double jumlah, {
+    File? imageFile,
+  }) async {
     try {
+      // 1. Tembak API untuk catat pembayaran
       bool success = await _pesananService.catatPembayaran(
         pesananId,
         tipe,
         jumlah,
+        imageFile: imageFile,
       );
 
       if (success) {
+        // ==========================================
+        // AUTO-UBAH STATUS JIKA LUNAS
+        // ==========================================
+        if (tipe.toLowerCase() == 'lunas') {
+          // Tembak API update status menjadi 'Selesai'
+          await _pesananService.updateStatus(pesananId, 'Selesai');
+        }
+
+        // 2. Tarik ulang data detail terbaru untuk me-refresh layar
         await fetchDetailPesanan(pesananId);
       }
 

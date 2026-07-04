@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/models/detail_pesanan_model.dart';
 import '../../../utils/pdf_helper.dart';
+import '../../../core/constants.dart'; // Tambahan untuk mengakses baseUrl
 
 class PembayaranCard extends StatelessWidget {
   final DetailPesananModel detail;
@@ -43,6 +44,21 @@ class PembayaranCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double totalBiayaJasa = 0;
+    double totalBiayaLainnya = 0;
+
+    if (detail.biayaTambahans != null) {
+      for (var biaya in detail.biayaTambahans) {
+        if (biaya.kategori.toLowerCase() == 'jasa') {
+          totalBiayaJasa += biaya.nominal;
+        } else {
+          totalBiayaLainnya += biaya.nominal;
+        }
+      }
+    }
+
+    double akumulasiPembayaran = 0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -53,12 +69,16 @@ class PembayaranCard extends StatelessWidget {
               "Riwayat Pembayaran",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
-
             const Divider(),
-
             if (detail.pembayarans.isEmpty) const Text("Belum ada pembayaran"),
 
             ...detail.pembayarans.map((p) {
+              double akumulasiSebelumnya = akumulasiPembayaran;
+              akumulasiPembayaran += p.jumlah;
+
+              double sisaSaatIni = detail.hargaJual - akumulasiPembayaran;
+              if (sisaSaatIni < 0) sisaSaatIni = 0;
+
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
@@ -68,7 +88,6 @@ class PembayaranCard extends StatelessWidget {
                     Expanded(
                       child: Text("${p.tipe}\n${p.tgl.substring(0, 10)}"),
                     ),
-
                     Row(
                       children: [
                         Text(
@@ -79,6 +98,55 @@ class PembayaranCard extends StatelessWidget {
                           ),
                         ),
 
+                        // ==========================================
+                        // TOMBOL LIHAT BUKTI BAYAR (Hanya tampil jika ada URL gambar)
+                        // ==========================================
+                        if (p.buktiBayar != null && p.buktiBayar!.isNotEmpty)
+                          IconButton(
+                            onPressed: () {
+                              // Hilangkan /v1 dari baseUrl jika ada, karena r.Static ada di root server
+                              String host = AppConstants.baseUrl.replaceAll(
+                                '/v1',
+                                '',
+                              );
+                              String fullImageUrl = '$host${p.buktiBayar}';
+
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text(
+                                    "Bukti Transfer",
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  content: InteractiveViewer(
+                                    child: Image.network(
+                                      fullImageUrl,
+                                      fit: BoxFit.contain,
+                                      errorBuilder:
+                                          (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) => const Text(
+                                            "Gambar gagal dimuat dari server",
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text("Tutup"),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.image, color: Colors.green),
+                            tooltip: "Lihat Bukti Bayar",
+                          ),
+
+                        // Tombol Cetak Kwitansi
                         IconButton(
                           onPressed: () {
                             PdfHelper.cetakKwitansiPembayaran(
@@ -89,9 +157,13 @@ class PembayaranCard extends StatelessWidget {
                                 "jumlah": p.jumlah,
                                 "tgl": p.tgl,
                               },
+                              totalTagihan: detail.hargaJual,
+                              pembayaranSebelumnya: akumulasiSebelumnya,
+                              sisaTagihan: sisaSaatIni,
                             );
                           },
-                          icon: const Icon(Icons.print),
+                          icon: const Icon(Icons.print, color: Colors.grey),
+                          tooltip: "Cetak Kwitansi",
                         ),
                       ],
                     ),
@@ -100,59 +172,7 @@ class PembayaranCard extends StatelessWidget {
               );
             }),
 
-            buildInfoRow(
-              "Biaya Material",
-
-              formatRupiah(detail.keuangan.totalBiayaMaterial),
-
-              isHighlight: true,
-            ),
-
-            buildInfoRow(
-              "Biaya Jasa",
-
-              formatRupiah(detail.keuangan.totalBiayaJasa),
-
-              isHighlight: true,
-
-              color: Colors.orange,
-            ),
-
-            buildInfoRow(
-              "Biaya Tambahan",
-
-              formatRupiah(detail.keuangan.totalBiayaTambahan),
-
-              isHighlight: true,
-
-              color: Colors.red,
-            ),
-
-            buildInfoRow(
-              "HPP Aktual",
-
-              formatRupiah(detail.keuangan.hppAktual),
-
-              isHighlight: true,
-
-              color: Colors.deepOrange,
-            ),
-
-            buildInfoRow(
-              "Margin Aktual",
-
-              formatRupiah(detail.keuangan.marginAktual),
-
-              isHighlight: true,
-
-              color: detail.keuangan.marginAktual < 0
-                  ? Colors.red
-                  : Colors.green,
-            ),
-
-            const Divider(),
-
-            const Divider(),
+            const SizedBox(height: 16),
 
             buildInfoRow(
               "Total Terbayar",
@@ -160,12 +180,15 @@ class PembayaranCard extends StatelessWidget {
               isHighlight: true,
               color: Colors.blue,
             ),
-
             buildInfoRow(
               "Sisa Tagihan",
-              formatRupiah(detail.keuangan.sisaTagihan),
+              detail.keuangan.sisaTagihan <= 0
+                  ? "LUNAS"
+                  : formatRupiah(detail.keuangan.sisaTagihan),
               isHighlight: true,
-              color: Colors.red,
+              color: detail.keuangan.sisaTagihan <= 0
+                  ? Colors.green
+                  : Colors.red,
             ),
           ],
         ),

@@ -10,6 +10,9 @@ class DetailPesananModel {
   final double hargaJual;
   final String tglOrder;
 
+  // 1. Tambahkan deklarasi variabel di sini
+  final String tglDeadline;
+
   final CustomerModel customer;
 
   final List<PesananMaterial> materials;
@@ -23,6 +26,10 @@ class DetailPesananModel {
     required this.status,
     required this.hargaJual,
     required this.tglOrder,
+
+    // 2. Tambahkan di dalam constructor
+    required this.tglDeadline,
+
     required this.customer,
     required this.materials,
     required this.pembayarans,
@@ -39,6 +46,9 @@ class DetailPesananModel {
       status: pesanan['status'] ?? '',
       hargaJual: (pesanan['harga_jual'] ?? 0).toDouble(),
       tglOrder: pesanan['tgl_order'] ?? '',
+
+      // 3. Tambahkan untuk menarik data dari backend Golang
+      tglDeadline: pesanan['tgl_deadline'] ?? '',
 
       customer: CustomerModel.fromJson(pesanan['customer'] ?? {}),
 

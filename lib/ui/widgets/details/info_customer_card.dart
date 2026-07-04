@@ -40,6 +40,13 @@ class InfoCustomerCard extends StatelessWidget {
             buildInfoRow("Status", detail.status),
 
             buildInfoRow("Tanggal Order", detail.tglOrder.substring(0, 10)),
+            buildInfoRow(
+              "Tanggal Deadline",
+              // Mengecek apakah panjang teks minimal 10 karakter sebelum di-substring
+              detail.tglDeadline.length >= 10
+                  ? detail.tglDeadline.substring(0, 10)
+                  : "-",
+            ),
           ],
         ),
       ),
