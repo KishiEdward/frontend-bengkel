@@ -376,38 +376,86 @@ class _TambahPesananScreenState extends State<TambahPesananScreen> {
                       const SizedBox(height: 8),
                       Consumer<MaterialProvider>(
                         builder: (context, provider, child) {
-                          return DropdownButtonFormField<MaterialModel>(
-                            initialValue: _listMaterial[index].selectedMaterial,
-                            items: provider.listMaterial
-                                .map(
-                                  (material) => DropdownMenuItem(
-                                    value: material,
-                                    child: Text(material.nama),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
+                          return Autocomplete<MaterialModel>(
+                            displayStringForOption: (MaterialModel option) =>
+                                option.nama,
+                            optionsBuilder: (TextEditingValue textEditingValue) {
+                              // Tampilkan semua jika kosong, jika tidak filter berdasarkan ketikan
+                              if (textEditingValue.text == '') {
+                                return provider.listMaterial;
+                              }
+                              return provider.listMaterial.where((
+                                MaterialModel option,
+                              ) {
+                                return option.nama.toLowerCase().contains(
+                                  textEditingValue.text.toLowerCase(),
+                                );
+                              });
+                            },
+                            onSelected: (MaterialModel selection) {
+                              // Update state saat item di-klik dari hasil pencarian
                               setState(() {
-                                _listMaterial[index].selectedMaterial = value;
-                                if (value != null) {
-                                  final format = NumberFormat.currency(
-                                    locale: 'id_ID',
-                                    symbol: '',
-                                    decimalDigits: 0,
-                                  );
-                                  _listMaterial[index].hargaCtrl.text = format
-                                      .format(value.hargaDefault);
-                                }
+                                _listMaterial[index].selectedMaterial =
+                                    selection;
+                                final format = NumberFormat.currency(
+                                  locale: 'id_ID',
+                                  symbol: '',
+                                  decimalDigits: 0,
+                                );
+                                _listMaterial[index].hargaCtrl.text = format
+                                    .format(selection.hargaDefault);
                               });
                               _updateHPP();
                             },
-                            decoration: const InputDecoration(
-                              labelText: "Pilih Material",
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
-                            validator: (val) =>
-                                val == null ? "Pilih material" : null,
+                            fieldViewBuilder:
+                                (
+                                  context,
+                                  textEditingController,
+                                  focusNode,
+                                  onFieldSubmitted,
+                                ) {
+                                  // Menjaga teks tetap ada jika user sudah memilih sebelumnya
+                                  if (_listMaterial[index].selectedMaterial !=
+                                          null &&
+                                      textEditingController.text.isEmpty) {
+                                    textEditingController.text =
+                                        _listMaterial[index]
+                                            .selectedMaterial!
+                                            .nama;
+                                  }
+
+                                  return TextFormField(
+                                    controller: textEditingController,
+                                    focusNode: focusNode,
+                                    decoration: const InputDecoration(
+                                      labelText: "Cari & Pilih Material",
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                      border: OutlineInputBorder(),
+                                      suffixIcon: Icon(
+                                        Icons.search,
+                                      ), // Tambahan ikon search
+                                    ),
+                                    validator: (val) =>
+                                        _listMaterial[index].selectedMaterial ==
+                                            null
+                                        ? "Pilih material"
+                                        : null,
+                                    // Hapus nilai jika user menghapus teks (membatalkan pilihan)
+                                    onChanged: (val) {
+                                      if (val.isEmpty) {
+                                        setState(() {
+                                          _listMaterial[index]
+                                                  .selectedMaterial =
+                                              null;
+                                          _listMaterial[index].hargaCtrl
+                                              .clear();
+                                        });
+                                        _updateHPP();
+                                      }
+                                    },
+                                  );
+                                },
                           );
                         },
                       ),

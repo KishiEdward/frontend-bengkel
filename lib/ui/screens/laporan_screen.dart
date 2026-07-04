@@ -36,10 +36,8 @@ class _LaporanScreenState extends State<LaporanScreen> {
   @override
   void initState() {
     super.initState();
-    // Default: Bulan dan Tahun saat ini
-    final now = DateTime.now();
-    selectedMonth = now.month.toString().padLeft(2, '0');
-    selectedYear = now.year.toString();
+    selectedMonth = _normalizeFilterValue('Semua');
+    selectedYear = _normalizeFilterValue('Semua');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<LaporanProvider>(
@@ -47,6 +45,12 @@ class _LaporanScreenState extends State<LaporanScreen> {
         listen: false,
       ).fetchLaporan(bulan: selectedMonth, tahun: selectedYear);
     });
+  }
+
+  String _normalizeFilterValue(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Semua';
+    final normalized = value.trim();
+    return normalized.toLowerCase() == 'semua' ? 'Semua' : normalized;
   }
 
   String getMonthName(String monthNumber) {
@@ -120,7 +124,10 @@ class _LaporanScreenState extends State<LaporanScreen> {
                   // Memanggil PdfHelper untuk membuat dan menampilkan PDF
                   await PdfHelper.cetakLaporanKeuangan(
                     periodeBulan: getMonthName(selectedMonth),
-                    periodeTahun: selectedYear,
+                    // Jika 'Semua', ubah jadi 'Semua Tahun', jika bukan biarkan angkanya
+                    periodeTahun: selectedYear == 'Semua'
+                        ? 'Semua Tahun'
+                        : selectedYear,
                     ringkasan: ringkasan,
                   );
                 } else {
@@ -200,6 +207,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
           int countSelesai = (ringkasan['count_selesai'] ?? 0).toInt();
           int countMenungguPelunasan =
               (ringkasan['count_menunggu_pelunasan'] ?? 0).toInt();
+          int countBatal = (ringkasan['count_batal'] ?? 0).toInt();
           int countWIP = (ringkasan['count_wip'] ?? 0).toInt();
           int countMenungguDP = (ringkasan['count_menunggu_dp'] ?? 0).toInt();
 
@@ -223,12 +231,12 @@ class _LaporanScreenState extends State<LaporanScreen> {
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: DropdownButton<String>(
-                        value: selectedMonth,
+                        value: _normalizeFilterValue(selectedMonth),
                         underline: const SizedBox(),
                         icon: const Icon(Icons.keyboard_arrow_down, size: 16),
                         items: months.map((String value) {
                           return DropdownMenuItem<String>(
-                            value: value,
+                            value: _normalizeFilterValue(value),
                             child: Text(
                               getMonthName(value),
                               style: const TextStyle(
@@ -239,7 +247,9 @@ class _LaporanScreenState extends State<LaporanScreen> {
                           );
                         }).toList(),
                         onChanged: (v) {
-                          setState(() => selectedMonth = v!);
+                          setState(
+                            () => selectedMonth = _normalizeFilterValue(v),
+                          );
                           provider.fetchLaporan(
                             bulan: selectedMonth,
                             tahun: selectedYear,
@@ -256,12 +266,12 @@ class _LaporanScreenState extends State<LaporanScreen> {
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: DropdownButton<String>(
-                        value: selectedYear,
+                        value: _normalizeFilterValue(selectedYear),
                         underline: const SizedBox(),
                         icon: const Icon(Icons.keyboard_arrow_down, size: 16),
                         items: years.map((String value) {
                           return DropdownMenuItem<String>(
-                            value: value,
+                            value: _normalizeFilterValue(value),
                             child: Text(
                               value,
                               style: const TextStyle(
@@ -272,7 +282,9 @@ class _LaporanScreenState extends State<LaporanScreen> {
                           );
                         }).toList(),
                         onChanged: (v) {
-                          setState(() => selectedYear = v!);
+                          setState(
+                            () => selectedYear = _normalizeFilterValue(v),
+                          );
                           provider.fetchLaporan(
                             bulan: selectedMonth,
                             tahun: selectedYear,
@@ -452,6 +464,14 @@ class _LaporanScreenState extends State<LaporanScreen> {
                             countMenungguDP,
                             Colors.purple,
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _buildStatusBox("Batal", countBatal, Colors.red),
+                          const SizedBox(width: 12),
+                          const Expanded(child: SizedBox()),
                         ],
                       ),
                     ],

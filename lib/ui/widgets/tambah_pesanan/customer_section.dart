@@ -43,32 +43,61 @@ class _CustomerSectionState extends State<CustomerSection> {
 
             const SizedBox(height: 16),
 
-            DropdownButtonFormField<CustomerModel>(
-              initialValue: selectedCustomer,
-
-              items: provider.listCustomer
-                  .map(
-                    (customer) => DropdownMenuItem(
-                      value: customer,
-
-                      child: Text(customer.nama),
-                    ),
-                  )
-                  .toList(),
-
-              onChanged: (value) {
-                setState(() {
-                  selectedCustomer = value;
+            Autocomplete<CustomerModel>(
+              displayStringForOption: (CustomerModel option) => option.nama,
+              optionsBuilder: (TextEditingValue textEditingValue) {
+                // Jika kolom pencarian kosong, tampilkan semua customer
+                if (textEditingValue.text == '') {
+                  return provider.listCustomer;
+                }
+                // Filter berdasarkan nama yang diketik
+                return provider.listCustomer.where((CustomerModel option) {
+                  return option.nama.toLowerCase().contains(
+                    textEditingValue.text.toLowerCase(),
+                  );
                 });
-
-                widget.onCustomerSelected(value);
               },
+              onSelected: (CustomerModel selection) {
+                setState(() {
+                  selectedCustomer = selection;
+                });
+                // Mengirim data customer yang dipilih ke parent screen
+                widget.onCustomerSelected(selection);
+              },
+              fieldViewBuilder:
+                  (
+                    context,
+                    textEditingController,
+                    focusNode,
+                    onFieldSubmitted,
+                  ) {
+                    // Menjaga agar teks nama tetap muncul jika customer sudah terpilih
+                    if (selectedCustomer != null &&
+                        textEditingController.text.isEmpty) {
+                      textEditingController.text = selectedCustomer!.nama;
+                    }
 
-              decoration: const InputDecoration(
-                labelText: "Pilih Customer",
-
-                border: OutlineInputBorder(),
-              ),
+                    return TextFormField(
+                      controller: textEditingController,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(
+                        labelText: "Cari & Pilih Customer",
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.search),
+                      ),
+                      validator: (val) =>
+                          selectedCustomer == null ? "Pilih customer" : null,
+                      onChanged: (val) {
+                        // Jika teks dihapus bersih, reset data pilihan
+                        if (val.isEmpty) {
+                          setState(() {
+                            selectedCustomer = null;
+                          });
+                          widget.onCustomerSelected(null);
+                        }
+                      },
+                    );
+                  },
             ),
 
             const SizedBox(height: 8),

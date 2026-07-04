@@ -310,7 +310,14 @@ class _PesananScreenState extends State<PesananScreen> {
                                   children: [
                                     const SizedBox(height: 8),
                                     Text(
-                                      "Tanggal: ${pesanan.tglOrder.substring(0, 10)}",
+                                      "Tanggal Order: ${pesanan.tglOrder.substring(0, 10)}",
+                                    ),
+                                    Text(
+                                      "Deadline: ${pesanan.tglDeadline.isNotEmpty ? (pesanan.tglDeadline.length >= 10 ? pesanan.tglDeadline.substring(0, 10) : pesanan.tglDeadline) : '-'}",
+                                      style: const TextStyle(
+                                        color: Colors.redAccent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
